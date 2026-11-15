@@ -63,32 +63,6 @@ class WifiLink(context: Context, private val onLost: () -> Unit = {}) {
         return result
     }
 
-    /**
-     * Discovery targets: normal broadcasts plus every IPv4 host on the local subnet.
-     * Some Android hotspots/APs suppress broadcast packets between clients, while direct
-     * client-to-client UDP still works. Cap to /24 so discovery stays bounded.
-     */
-    fun discoveryAddresses(): List<InetAddress> {
-        val result = linkedSetOf<InetAddress>()
-        result += broadcastAddresses()
-
-        val links = network?.let { connectivity.getLinkProperties(it) }?.linkAddresses ?: return result.toList()
-        for (link in links) {
-            val self = link.address as? Inet4Address ?: continue
-            val bits = link.prefixLength.coerceIn(24, 30)
-            val ip = ByteBuffer.wrap(self.address).int
-            val base = ip and (-1 shl (32 - bits))
-            val count = (1 shl (32 - bits)) - 2
-            for (host in 1..count) {
-                val candidate = base + host
-                if (candidate == ip) continue
-                val bytes = ByteBuffer.allocate(4).putInt(candidate).array()
-                result += InetAddress.getByAddress(bytes)
-            }
-        }
-        return result.toList()
-    }
-
     /** Addresses, routes and interface of the Wi-Fi network, once [acquire]d. */
     fun linkProperties(): LinkProperties? = network?.let { connectivity.getLinkProperties(it) }
 
