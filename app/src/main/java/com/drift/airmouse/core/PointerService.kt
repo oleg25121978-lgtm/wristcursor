@@ -326,7 +326,7 @@ class PointerService : Service(), SensorEventListener {
         if (problem == NO_ANSWER) {
             // Routers hand out new addresses now and then: look for the computer again and retry.
             PointerBus.state.value = LinkState.Connecting
-            val found = Discovery.search(socket, wifiLink.broadcastAddresses(), wanted = computer.name)
+            val found = Discovery.search(socket, wifiLink.discoveryAddresses(), wanted = computer.name)
             val foundAddress = found?.let { runCatching { InetAddress.getByName(it.host) }.getOrNull() }
             if (found != null && foundAddress != null) {
                 prefs.saveComputer(found)
