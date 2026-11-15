@@ -24,7 +24,7 @@ class MainActivity : Activity() {
     private val surfaceHigh = Color.rgb(36, 41, 52)
     private val mint = Color.rgb(139, 241, 216)
     private val mintDark = Color.rgb(0, 56, 45)
-    private val text = Color.rgb(239, 241, 246)
+    private val textColor = Color.rgb(239, 241, 246)
     private val muted = Color.rgb(169, 176, 192)
     private val warning = Color.rgb(255, 158, 158)
 
@@ -66,7 +66,7 @@ class MainActivity : Activity() {
 
         val subtitle = TextView(this).apply {
             text = "ROKID RECEIVER"
-            setTextColor(text)
+            setTextColor(textColor)
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
             letterSpacing = 0.12f
@@ -174,7 +174,7 @@ class MainActivity : Activity() {
         val copy = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         copy.addView(TextView(this).apply {
             text = title
-            setTextColor(text)
+            setTextColor(textColor)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             letterSpacing = 0.04f
@@ -206,7 +206,7 @@ class MainActivity : Activity() {
             statusText.text = "ACCESSIBILITY REQUIRED"
             statusText.setTextColor(warning)
             actionButton.text = "ENABLE ACCESSIBILITY"
-            actionButton.setTextColor(text)
+            actionButton.setTextColor(textColor)
             actionButton.background = rounded(Color.rgb(122, 31, 31), dp(18))
         }
     }
