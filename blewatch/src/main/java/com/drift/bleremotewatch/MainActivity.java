@@ -54,6 +54,8 @@ public class MainActivity extends Activity {
     private final List<Button> allCommandButtons = new ArrayList<>();
     private LinearLayout mediaPage;
     private LinearLayout navPage;
+    private LinearLayout systemPage;
+    private LinearLayout appsPage;
     private int seenDevices = 0;
     private int touchTapCount = 0;
     private final Runnable touchTapCommit = () -> {
@@ -154,19 +156,19 @@ public class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(10), dp(10), dp(10), dp(18));
+        root.setPadding(dp(8), dp(8), dp(8), dp(16));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.setBackgroundColor(Color.BLACK);
         scroll.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView title = label("ROKID BLE", 20, 0xFF8BF1D8);
+        TextView title = label("ROKID BLE", 19, 0xFF8BF1D8);
         title.setGravity(Gravity.CENTER);
         root.addView(title, full());
 
-        hardwareText = label("BLE HW: CHECKING", 11, Color.WHITE);
-        scanText = label("SCAN: IDLE", 11, 0xFFA9B0C0);
-        linkText = label("GATT: IDLE", 11, 0xFFA9B0C0);
+        hardwareText = label("BLE HW: CHECKING", 10, Color.WHITE);
+        scanText = label("SCAN: IDLE", 10, 0xFFA9B0C0);
+        linkText = label("GATT: IDLE", 10, 0xFFA9B0C0);
         lastText = label("LAST: —", 10, 0xFFA9B0C0);
         root.addView(hardwareText, full());
         root.addView(scanText, full());
@@ -177,68 +179,110 @@ public class MainActivity extends Activity {
         scanButton.setOnClickListener(v -> startScan());
         root.addView(scanButton, full());
 
-        LinearLayout tabs = new LinearLayout(this);
-        tabs.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout tabs1 = new LinearLayout(this);
+        tabs1.setOrientation(LinearLayout.HORIZONTAL);
         Button mediaTab = button("MEDIA");
         Button navTab = button("NAV");
-        mediaTab.setOnClickListener(v -> showPage(true));
-        navTab.setOnClickListener(v -> showPage(false));
-        tabs.addView(mediaTab, half());
-        tabs.addView(navTab, half());
-        root.addView(tabs, full());
+        mediaTab.setOnClickListener(v -> showPage(0));
+        navTab.setOnClickListener(v -> showPage(1));
+        tabs1.addView(mediaTab, half());
+        tabs1.addView(navTab, half());
+        root.addView(tabs1, full());
 
-        mediaPage = new LinearLayout(this);
-        mediaPage.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout tabs2 = new LinearLayout(this);
+        tabs2.setOrientation(LinearLayout.HORIZONTAL);
+        Button systemTab = button("SYSTEM");
+        Button appsTab = button("APPS");
+        systemTab.setOnClickListener(v -> showPage(2));
+        appsTab.setOnClickListener(v -> showPage(3));
+        tabs2.addView(systemTab, half());
+        tabs2.addView(appsTab, half());
+        root.addView(tabs2, full());
+
+        mediaPage = page();
+        navPage = page();
+        systemPage = page();
+        appsPage = page();
         root.addView(mediaPage, full());
-
-        navPage = new LinearLayout(this);
-        navPage.setOrientation(LinearLayout.VERTICAL);
         root.addView(navPage, full());
+        root.addView(systemPage, full());
+        root.addView(appsPage, full());
 
-        Button photo = commandButton("PHOTO", "PHOTO");
-        Button video = commandButton("VIDEO START / STOP", "VIDEO");
-        Button recorder = commandButton("RECORDER", "VOICE");
-        Button key1 = commandButton("KEY 1", "KEY1");
-        Button key2 = commandButton("KEY 2", "KEY2");
-        Button key3 = commandButton("KEY 3", "KEY3");
-        Button key4 = commandButton("KEY 4", "KEY4");
-        commandButtons = new Button[] { photo, video, recorder, key1, key2, key3, key4 };
-        for (Button button : commandButtons) mediaPage.addView(button, full());
+        mediaPage.addView(commandButton("PHOTO", "PHOTO"), full());
+        mediaPage.addView(commandButton("VIDEO START / STOP", "VIDEO"), full());
+        mediaPage.addView(commandButton("RECORDER", "VOICE"), full());
+        mediaPage.addView(commandButton("KEY 1", "KEY1"), full());
+        mediaPage.addView(commandButton("KEY 2", "KEY2"), full());
+        mediaPage.addView(commandButton("KEY 3", "KEY3"), full());
+        mediaPage.addView(commandButton("KEY 4", "KEY4"), full());
 
-        Button up = commandButton("↑", "UP");
-        navPage.addView(up, full());
+        navPage.addView(commandButton("↑", "UP"), full());
+        LinearLayout navRow = new LinearLayout(this);
+        navRow.setOrientation(LinearLayout.HORIZONTAL);
+        navRow.addView(commandButton("←", "LEFT"), third());
+        navRow.addView(commandButton("OK", "OK"), third());
+        navRow.addView(commandButton("→", "RIGHT"), third());
+        navPage.addView(navRow, full());
+        navPage.addView(commandButton("↓", "DOWN"), full());
 
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.addView(commandButton("←", "LEFT"), third());
-        row.addView(commandButton("OK", "OK"), third());
-        row.addView(commandButton("→", "RIGHT"), third());
-        navPage.addView(row, full());
-
-        Button down = commandButton("↓", "DOWN");
-        navPage.addView(down, full());
-
-        LinearLayout row2 = new LinearLayout(this);
-        row2.setOrientation(LinearLayout.HORIZONTAL);
-        row2.addView(commandButton("BACK", "BACK"), third());
-        row2.addView(commandButton("HOME", "HOME"), third());
-        row2.addView(commandButton("NEXUS", "NEXUS"), third());
-        navPage.addView(row2, full());
+        LinearLayout navRow2 = new LinearLayout(this);
+        navRow2.setOrientation(LinearLayout.HORIZONTAL);
+        navRow2.addView(commandButton("BACK", "BACK"), third());
+        navRow2.addView(commandButton("HOME", "HOME"), third());
+        navRow2.addView(commandButton("NEXUS", "NEXUS"), third());
+        navPage.addView(navRow2, full());
 
         Button touch = button("TOUCH  • / •• / •••");
         touch.setOnClickListener(v -> registerTouchTap());
         allCommandButtons.add(touch);
         navPage.addView(touch, full());
 
+        TextView volumeTitle = label("VOLUME", 12, 0xFF8BF1D8);
+        systemPage.addView(volumeTitle, full());
+        LinearLayout volRow = new LinearLayout(this);
+        volRow.setOrientation(LinearLayout.HORIZONTAL);
+        volRow.addView(commandButton("−", "VOL_DOWN"), third());
+        volRow.addView(commandButton("MUTE", "MUTE"), third());
+        volRow.addView(commandButton("+", "VOL_UP"), third());
+        systemPage.addView(volRow, full());
+
+        TextView brightnessTitle = label("BRIGHTNESS", 12, 0xFF8BF1D8);
+        systemPage.addView(brightnessTitle, full());
+        LinearLayout briRow = new LinearLayout(this);
+        briRow.setOrientation(LinearLayout.HORIZONTAL);
+        briRow.addView(commandButton("−", "BRI_DOWN"), half());
+        briRow.addView(commandButton("+", "BRI_UP"), half());
+        systemPage.addView(briRow, full());
+
+        appsPage.addView(commandButton("CAMERA", "APP_CAMERA"), full());
+        appsPage.addView(commandButton("AI CHAT", "APP_CHAT"), full());
+        appsPage.addView(commandButton("TRANSLATE", "APP_TRANSLATE"), full());
+        appsPage.addView(commandButton("TELEPROMPTER", "APP_PROMPTER"), full());
+        appsPage.addView(commandButton("MUSIC", "APP_MUSIC"), full());
+        appsPage.addView(commandButton("NAVIGATION", "APP_NAV"), full());
+        appsPage.addView(commandButton("GALLERY", "APP_GALLERY"), full());
+        appsPage.addView(commandButton("AUDIO", "APP_AUDIO"), full());
+        appsPage.addView(commandButton("SETTINGS", "APP_SETTINGS"), full());
+        appsPage.addView(commandButton("BLUETOOTH", "APP_BT"), full());
+
+        commandButtons = allCommandButtons.toArray(new Button[0]);
         enableCommands(false);
-        showPage(true);
+        showPage(0);
         setContentView(scroll);
     }
 
-    private void showPage(boolean media) {
-        if (mediaPage == null || navPage == null) return;
-        mediaPage.setVisibility(media ? View.VISIBLE : View.GONE);
-        navPage.setVisibility(media ? View.GONE : View.VISIBLE);
+    private LinearLayout page() {
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        return page;
+    }
+
+    private void showPage(int page) {
+        if (mediaPage == null || navPage == null || systemPage == null || appsPage == null) return;
+        mediaPage.setVisibility(page == 0 ? View.VISIBLE : View.GONE);
+        navPage.setVisibility(page == 1 ? View.VISIBLE : View.GONE);
+        systemPage.setVisibility(page == 2 ? View.VISIBLE : View.GONE);
+        appsPage.setVisibility(page == 3 ? View.VISIBLE : View.GONE);
     }
 
     private void registerTouchTap() {
