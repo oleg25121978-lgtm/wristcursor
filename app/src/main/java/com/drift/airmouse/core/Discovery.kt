@@ -25,7 +25,7 @@ object Discovery {
             val network = wifi.acquire() ?: return@withContext Result.NoWifi
             DatagramSocket().use { socket ->
                 network.bindSocket(socket)
-                search(socket, wifi.discoveryAddresses())?.let { Result.Found(it) } ?: Result.NotFound
+                search(socket, wifi.broadcastAddresses())?.let { Result.Found(it) } ?: Result.NotFound
             }
         } catch (_: Exception) {
             Result.NotFound
