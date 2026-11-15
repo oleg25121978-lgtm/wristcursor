@@ -3,8 +3,6 @@ name: Build WristCursor APK
 on:
   push:
     branches: [main]
-    paths:
-      - '.github/workflows/build-wristcursor-apk.yml'
   workflow_dispatch:
 
 jobs:
@@ -35,7 +33,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APKs\n        run: bash ./gradlew :app:assembleDebug :rokidreceiver:assembleDebug --stacktrace --no-daemon
+      - name: Build debug APKs
+        run: bash ./gradlew :app:assembleDebug :rokidreceiver:assembleDebug --stacktrace --no-daemon
 
       - name: Upload watch APK
         if: success()
