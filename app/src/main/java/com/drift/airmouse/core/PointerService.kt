@@ -542,8 +542,9 @@ class PointerService : Service(), SensorEventListener {
         if (pinch.holding) releaseHold()
         pinch = PinchDetector(
             PinchDetector.thresholdFor(calibration?.pinchThreshold, next.pinchSensitivity),
-            holdEnabled = next.pinchHold != PinchAction.NOTHING,
-            doubleEnabled = next.pinchTwice != PinchAction.NOTHING,
+            holdEnabled = true,
+            doubleEnabled = true,
+            tripleEnabled = true,
         )
         shake = ShakeDetector(next.shakeSensitivity)
         knock.reset()
@@ -845,19 +846,22 @@ class PointerService : Service(), SensorEventListener {
     /** Mouse uses the gestures picked in Settings; Slides and Media have fixed, simple ones. */
     private fun pinchAction(gesture: PinchDetector.Event): Action? = when (PointerBus.mode.value) {
         Mode.MOUSE -> when (gesture) {
-            PinchDetector.Event.SINGLE -> tuning.pinchOnce.toAction()
-            PinchDetector.Event.DOUBLE -> tuning.pinchTwice.toAction()
-            PinchDetector.Event.HOLD_START -> tuning.pinchHold.toAction()
+            PinchDetector.Event.SINGLE -> Action.Click
+            PinchDetector.Event.DOUBLE -> Action.Press(RemoteKey.BACK)
+            PinchDetector.Event.TRIPLE -> Action.Press(RemoteKey.HOME)
+            PinchDetector.Event.HOLD_START -> Action.DragStart
             PinchDetector.Event.HOLD_END -> null
         }
         Mode.SLIDES -> when (gesture) {
             PinchDetector.Event.SINGLE -> Action.NextSlide
             PinchDetector.Event.DOUBLE -> Action.PreviousSlide
+            PinchDetector.Event.TRIPLE -> null
             else -> null
         }
         Mode.MEDIA -> when (gesture) {
             PinchDetector.Event.SINGLE -> Action.Press(RemoteKey.PLAY_PAUSE)
             PinchDetector.Event.DOUBLE -> Action.Press(RemoteKey.NEXT)
+            PinchDetector.Event.TRIPLE -> null
             else -> null
         }
         Mode.TOUCHPAD, Mode.REMOTE, Mode.KEYBOARD, Mode.GAME -> null
