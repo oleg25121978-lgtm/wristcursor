@@ -231,6 +231,7 @@ public class MainActivity extends Activity {
         navRow2.addView(commandButton("HOME", "HOME"), third());
         navRow2.addView(commandButton("NEXUS", "NEXUS"), third());
         navPage.addView(navRow2, full());
+        navPage.addView(commandButton("MENU", "MENU"), full());
 
         Button touch = button("TOUCH  • / •• / •••");
         touch.setOnClickListener(v -> registerTouchTap());
