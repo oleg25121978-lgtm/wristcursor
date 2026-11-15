@@ -35,13 +35,20 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
-        run: bash ./gradlew :app:assembleDebug --stacktrace --no-daemon
+      - name: Build debug APKs\n        run: bash ./gradlew :app:assembleDebug :rokidreceiver:assembleDebug --stacktrace --no-daemon
 
-      - name: Upload APK
+      - name: Upload watch APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: WristCursor-debug-APK
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload Rokid receiver APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Drift-Rokid-Receiver-debug-APK
+          path: rokidreceiver/build/outputs/apk/debug/*.apk
           if-no-files-found: error
