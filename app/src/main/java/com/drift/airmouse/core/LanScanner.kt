@@ -74,7 +74,7 @@ object LanScanner {
             gateway?.hostAddress?.let { book.alive(it) }
 
             coroutineScope {
-                launch { Discovery.findAll(network, wifi.discoveryAddresses()).forEach { book.receiver(it) } }
+                launch { Discovery.findAll(network, wifi.broadcastAddresses()).forEach { book.receiver(it) } }
                 launch { browseBonjour(context, network, book) }
                 launch { ssdp(context, network, book) }
                 launch { netbiosSweep(network, targets, book) }
