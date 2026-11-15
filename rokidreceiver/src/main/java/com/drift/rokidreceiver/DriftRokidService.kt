@@ -35,9 +35,14 @@ class DriftRokidService : AccessibilityService() {
     private var cursorY = 0f
     private var dragStartX: Float? = null
     private var dragStartY: Float? = null
+    @Volatile private var destroyed = false
+    private val restartReceiver = Runnable {
+        if (!running.get()) startReceiver()
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        destroyed = false
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         centerCursor()
         showCursor()
@@ -48,6 +53,7 @@ class DriftRokidService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onDestroy() {
+        destroyed = true
         stopReceiver()
         hideCursor()
         super.onDestroy()
@@ -55,6 +61,7 @@ class DriftRokidService : AccessibilityService() {
 
     private fun startReceiver() {
         if (!running.compareAndSet(false, true)) return
+        listenerAlive = false
         worker = Thread({
             try {
                 val s = DatagramSocket(null).apply {
@@ -64,6 +71,7 @@ class DriftRokidService : AccessibilityService() {
                     bind(InetSocketAddress(PORT))
                 }
                 socket = s
+                listenerAlive = true
                 val buffer = ByteArray(8192)
                 while (running.get()) {
                     try {
@@ -79,19 +87,28 @@ class DriftRokidService : AccessibilityService() {
                             else -> handleCommand(msg)
                         }
                     } catch (_: SocketTimeoutException) {
+                    } catch (_: Throwable) {
+                        // A transient UDP/network error must not permanently kill the receiver.
+                        break
                     }
                 }
-            } catch (_: Throwable) {
             } finally {
+                listenerAlive = false
                 socket?.close()
                 socket = null
                 running.set(false)
+                if (!destroyed) {
+                    main.removeCallbacks(restartReceiver)
+                    main.postDelayed(restartReceiver, 700)
+                }
             }
         }, "Drift-Rokid-UDP").also { it.start() }
     }
 
     private fun stopReceiver() {
+        main.removeCallbacks(restartReceiver)
         running.set(false)
+        listenerAlive = false
         socket?.close()
         socket = null
         worker = null
@@ -270,5 +287,7 @@ class DriftRokidService : AccessibilityService() {
 
     companion object {
         private const val PORT = 47800
+        @Volatile var listenerAlive: Boolean = false
+            private set
     }
 }
