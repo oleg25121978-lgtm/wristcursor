@@ -18,9 +18,12 @@ import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.graphics.Color;
+import android.media.AudioManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.ParcelUuid;
+import android.provider.Settings;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -266,6 +269,51 @@ public class MainActivity extends Activity {
                         sendBroadcast(nexus);
                         commandText.setText("ACTION: NEXUS → OPEN");
                         break;
+                    case "VOL_UP":
+                        adjustVolume(AudioManager.ADJUST_RAISE);
+                        break;
+                    case "VOL_DOWN":
+                        adjustVolume(AudioManager.ADJUST_LOWER);
+                        break;
+                    case "MUTE":
+                        toggleMute();
+                        break;
+                    case "BRI_UP":
+                        adjustBrightness(1);
+                        break;
+                    case "BRI_DOWN":
+                        adjustBrightness(-1);
+                        break;
+                    case "APP_CAMERA":
+                        launchStock("com.rokid.os.sprite.launcher.page.camera.CameraPageActivity", "CAMERA");
+                        break;
+                    case "APP_CHAT":
+                        launchStock("com.rokid.os.sprite.launcher.page.chat.ChatPageActivity", "AI CHAT");
+                        break;
+                    case "APP_TRANSLATE":
+                        launchStock("com.rokid.os.sprite.launcher.page.translate.TranslatePageActivity", "TRANSLATE");
+                        break;
+                    case "APP_PROMPTER":
+                        launchStock("com.rokid.os.sprite.launcher.page.wordtips.WordTipsPageActivity", "WORD TIPS");
+                        break;
+                    case "APP_MUSIC":
+                        launchStock("com.rokid.os.sprite.launcher.page.music.MusicPageActivity", "MUSIC");
+                        break;
+                    case "APP_NAV":
+                        launchStock("com.rokid.os.sprite.launcher.page.navigation.NavigationOverseaPageActivity", "NAVIGATION");
+                        break;
+                    case "APP_GALLERY":
+                        launchStock("com.rokid.os.sprite.launcher.page.gallery.StorageImageShowActivity", "GALLERY");
+                        break;
+                    case "APP_SETTINGS":
+                        launchStock("com.rokid.os.sprite.launcher.setting.SettingPageActivity", "SETTINGS");
+                        break;
+                    case "APP_BT":
+                        launchStock("com.rokid.os.sprite.launcher.setting.bluetooth.SettingBluetoothActivity", "BLUETOOTH");
+                        break;
+                    case "APP_AUDIO":
+                        launchStock("com.rokid.os.sprite.launcher.page.audio.AudioPageActivity", "AUDIO");
+                        break;
                     case "LEFT":
                     case "RIGHT":
                     case "UP":
@@ -293,6 +341,58 @@ public class MainActivity extends Activity {
                 commandText.setText("ACTION ERROR: " + t.getClass().getSimpleName());
             }
         });
+    }
+
+    private void adjustVolume(int direction) {
+        AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
+        if (audio == null) {
+            commandText.setText("SYSTEM: AUDIO UNAVAILABLE");
+            return;
+        }
+        audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI);
+        int now = audio.getStreamVolume(AudioManager.STREAM_MUSIC);
+        int max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        commandText.setText("VOLUME: " + now + " / " + max);
+    }
+
+    private void toggleMute() {
+        AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
+        if (audio == null) {
+            commandText.setText("SYSTEM: AUDIO UNAVAILABLE");
+            return;
+        }
+        audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_SHOW_UI);
+        commandText.setText("VOLUME: MUTE TOGGLED");
+    }
+
+    private void adjustBrightness(int deltaLevel) {
+        if (!Settings.System.canWrite(this)) {
+            commandText.setText("BRIGHTNESS: NEED WRITE SETTINGS");
+            try {
+                Intent permission = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                        Uri.parse("package:" + getPackageName()));
+                permission.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(permission);
+            } catch (Throwable ignored) {}
+            return;
+        }
+        int current = Settings.System.getInt(getContentResolver(),
+                Settings.System.SCREEN_BRIGHTNESS, 128);
+        int step = 17; // 255 / 15, matching Rokid's 0..15 UI levels.
+        int next = Math.max(1, Math.min(255, current + deltaLevel * step));
+        Settings.System.putInt(getContentResolver(), Settings.System.SCREEN_BRIGHTNESS_MODE,
+                Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
+        Settings.System.putInt(getContentResolver(), Settings.System.SCREEN_BRIGHTNESS, next);
+        int level = Math.round(next * 15f / 255f);
+        commandText.setText("BRIGHTNESS: " + level + " / 15");
+    }
+
+    private void launchStock(String className, String label) {
+        Intent intent = new Intent();
+        intent.setClassName("com.rokid.os.sprite.launcher", className);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
+        commandText.setText("APP: " + label);
     }
 
     private void sendRokidScene(String scene, boolean open) {
