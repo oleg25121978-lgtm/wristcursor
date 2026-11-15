@@ -21,9 +21,10 @@ class PinchDetector(
     private val threshold: Float,
     private val holdEnabled: Boolean = true,
     private val doubleEnabled: Boolean = true,
+    private val tripleEnabled: Boolean = false,
 ) {
 
-    enum class Event { SINGLE, DOUBLE, HOLD_START, HOLD_END }
+    enum class Event { SINGLE, DOUBLE, TRIPLE, HOLD_START, HOLD_END }
 
     private enum class State { IDLE, DOWN, HOLDING }
 
@@ -117,9 +118,14 @@ class PinchDetector(
                 state = State.IDLE
                 return Event.HOLD_END
             }
-            state == State.IDLE && taps == 1 && nowNanos - lastTapNanos > TAP_GAP_NANOS -> {
+            state == State.IDLE && taps > 0 && nowNanos - lastTapNanos > TAP_GAP_NANOS -> {
+                val event = when (taps) {
+                    1 -> Event.SINGLE
+                    2 -> Event.DOUBLE
+                    else -> Event.TRIPLE
+                }
                 taps = 0
-                return Event.SINGLE
+                return event
             }
         }
         return null
@@ -132,6 +138,13 @@ class PinchDetector(
         }
         taps++
         lastTapNanos = nowNanos
+
+        if (tripleEnabled) {
+            if (taps < 3) return null
+            taps = 0
+            return Event.TRIPLE
+        }
+
         if (taps < 2) return null
         taps = 0
         return Event.DOUBLE
