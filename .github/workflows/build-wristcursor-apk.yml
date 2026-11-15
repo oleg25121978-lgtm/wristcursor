@@ -1,13 +1,13 @@
-name: Build WristCursor APK
+name: Build BLE Remote Test APKs
 
 on:
   push:
-    branches: [main]
+    branches: [ble-remote-test]
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build Android debug APK
+    name: Build BLE watch and Rokid test APKs
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
@@ -24,7 +24,6 @@ jobs:
 
       - name: Install SDK platform and build tools
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
@@ -33,21 +32,21 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APKs
-        run: bash ./gradlew :app:assembleDebug :rokidreceiver:assembleDebug --stacktrace --no-daemon
+      - name: Build BLE debug APKs
+        run: bash ./gradlew :blewatch:assembleDebug :blerokid:assembleDebug --stacktrace --no-daemon
 
-      - name: Upload watch APK
+      - name: Upload watch BLE APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: WristCursor-debug-APK
-          path: app/build/outputs/apk/debug/*.apk
+          name: Rokid-BLE-Remote-Watch-debug-APK
+          path: blewatch/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
-      - name: Upload Rokid receiver APK
+      - name: Upload Rokid BLE receiver APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Drift-Rokid-Receiver-debug-APK
-          path: rokidreceiver/build/outputs/apk/debug/*.apk
+          name: Rokid-BLE-Receiver-debug-APK
+          path: blerokid/build/outputs/apk/debug/*.apk
           if-no-files-found: error
