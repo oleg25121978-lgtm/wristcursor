@@ -22,6 +22,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelUuid;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -29,6 +30,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class MainActivity extends Activity {
@@ -48,7 +51,18 @@ public class MainActivity extends Activity {
     private TextView lastText;
     private Button scanButton;
     private Button[] commandButtons;
+    private final List<Button> allCommandButtons = new ArrayList<>();
+    private LinearLayout mediaPage;
+    private LinearLayout navPage;
     private int seenDevices = 0;
+    private int touchTapCount = 0;
+    private final Runnable touchTapCommit = () -> {
+        int count = touchTapCount;
+        touchTapCount = 0;
+        if (count <= 1) send("TOUCH1");
+        else if (count == 2) send("TOUCH2");
+        else send("TOUCH3");
+    };
 
     private final ScanCallback scanCallback = new ScanCallback() {
         @Override public void onScanResult(int callbackType, ScanResult result) {
@@ -140,20 +154,20 @@ public class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(12), dp(12), dp(12), dp(20));
+        root.setPadding(dp(10), dp(10), dp(10), dp(18));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.setBackgroundColor(Color.BLACK);
         scroll.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView title = label("BLE REMOTE", 22, 0xFF8BF1D8);
+        TextView title = label("ROKID BLE", 20, 0xFF8BF1D8);
         title.setGravity(Gravity.CENTER);
         root.addView(title, full());
 
-        hardwareText = label("BLE HW: CHECKING", 13, Color.WHITE);
-        scanText = label("SCAN: IDLE", 13, 0xFFA9B0C0);
-        linkText = label("GATT: IDLE", 13, 0xFFA9B0C0);
-        lastText = label("LAST: —", 12, 0xFFA9B0C0);
+        hardwareText = label("BLE HW: CHECKING", 11, Color.WHITE);
+        scanText = label("SCAN: IDLE", 11, 0xFFA9B0C0);
+        linkText = label("GATT: IDLE", 11, 0xFFA9B0C0);
+        lastText = label("LAST: —", 10, 0xFFA9B0C0);
         root.addView(hardwareText, full());
         root.addView(scanText, full());
         root.addView(linkText, full());
@@ -163,26 +177,85 @@ public class MainActivity extends Activity {
         scanButton.setOnClickListener(v -> startScan());
         root.addView(scanButton, full());
 
-        commandButtons = new Button[] {
-                commandButton("PHOTO", "PHOTO"),
-                commandButton("VIDEO", "VIDEO"),
-                commandButton("RECORDER", "VOICE"),
-                commandButton("KEY 1", "KEY1"),
-                commandButton("KEY 2", "KEY2"),
-                commandButton("KEY 3", "KEY3"),
-                commandButton("KEY 4", "KEY4")
-        };
-        for (Button button : commandButtons) {
-            button.setEnabled(false);
-            root.addView(button, full());
-        }
+        LinearLayout tabs = new LinearLayout(this);
+        tabs.setOrientation(LinearLayout.HORIZONTAL);
+        Button mediaTab = button("MEDIA");
+        Button navTab = button("NAV");
+        mediaTab.setOnClickListener(v -> showPage(true));
+        navTab.setOnClickListener(v -> showPage(false));
+        tabs.addView(mediaTab, half());
+        tabs.addView(navTab, half());
+        root.addView(tabs, full());
 
+        mediaPage = new LinearLayout(this);
+        mediaPage.setOrientation(LinearLayout.VERTICAL);
+        root.addView(mediaPage, full());
+
+        navPage = new LinearLayout(this);
+        navPage.setOrientation(LinearLayout.VERTICAL);
+        root.addView(navPage, full());
+
+        Button photo = commandButton("PHOTO", "PHOTO");
+        Button video = commandButton("VIDEO START / STOP", "VIDEO");
+        Button recorder = commandButton("RECORDER", "VOICE");
+        Button key1 = commandButton("KEY 1", "KEY1");
+        Button key2 = commandButton("KEY 2", "KEY2");
+        Button key3 = commandButton("KEY 3", "KEY3");
+        Button key4 = commandButton("KEY 4", "KEY4");
+        commandButtons = new Button[] { photo, video, recorder, key1, key2, key3, key4 };
+        for (Button button : commandButtons) mediaPage.addView(button, full());
+
+        Button up = commandButton("↑", "UP");
+        navPage.addView(up, full());
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.addView(commandButton("←", "LEFT"), third());
+        row.addView(commandButton("OK", "OK"), third());
+        row.addView(commandButton("→", "RIGHT"), third());
+        navPage.addView(row, full());
+
+        Button down = commandButton("↓", "DOWN");
+        navPage.addView(down, full());
+
+        LinearLayout row2 = new LinearLayout(this);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        row2.addView(commandButton("BACK", "BACK"), third());
+        row2.addView(commandButton("HOME", "HOME"), third());
+        row2.addView(commandButton("NEXUS", "NEXUS"), third());
+        navPage.addView(row2, full());
+
+        Button touch = button("TOUCH  • / •• / •••");
+        touch.setOnClickListener(v -> registerTouchTap());
+        allCommandButtons.add(touch);
+        navPage.addView(touch, full());
+
+        enableCommands(false);
+        showPage(true);
         setContentView(scroll);
+    }
+
+    private void showPage(boolean media) {
+        if (mediaPage == null || navPage == null) return;
+        mediaPage.setVisibility(media ? View.VISIBLE : View.GONE);
+        navPage.setVisibility(media ? View.GONE : View.VISIBLE);
+    }
+
+    private void registerTouchTap() {
+        if (commandCharacteristic == null) {
+            lastText.setText("LAST: NOT CONNECTED");
+            return;
+        }
+        touchTapCount++;
+        handler.removeCallbacks(touchTapCommit);
+        handler.postDelayed(touchTapCommit, 430);
+        lastText.setText("TOUCH: " + touchTapCount + " TAP");
     }
 
     private Button commandButton(String caption, String command) {
         Button button = button(caption);
         button.setOnClickListener(v -> send(command));
+        allCommandButtons.add(button);
         return button;
     }
 
@@ -208,6 +281,18 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.setMargins(0, dp(3), 0, dp(3));
+        return lp;
+    }
+
+    private LinearLayout.LayoutParams half() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp.setMargins(dp(2), dp(2), dp(2), dp(2));
+        return lp;
+    }
+
+    private LinearLayout.LayoutParams third() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp.setMargins(dp(1), dp(2), dp(1), dp(2));
         return lp;
     }
 
@@ -333,7 +418,7 @@ public class MainActivity extends Activity {
     }
 
     private void enableCommands(boolean enabled) {
-        for (Button b : commandButtons) b.setEnabled(enabled);
+        for (Button b : allCommandButtons) b.setEnabled(enabled);
     }
 
     private void showLinkError(String text) {
