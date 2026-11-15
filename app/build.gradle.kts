@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.drift.airmouse"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.drift.airmouse"
