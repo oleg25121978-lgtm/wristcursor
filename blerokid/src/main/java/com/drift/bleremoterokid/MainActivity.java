@@ -50,8 +50,11 @@ public class MainActivity extends Activity {
     private TextView commandText;
     private Button startButton;
     private boolean videoSceneOpen = false;
+    private RokidMediaController mediaController;
 
     private static final String ACTION_CMD = "com.rokid.os.master.assist.server.cmd";
+    private static final String ACTION_SWIPE_BACK = "com.android.action.ACTION_TWO_FINGER_SWIPE_BACK";
+    private static final String ACTION_SWIPE_FORWARD = "com.android.action.ACTION_TWO_FINGER_SWIPE_FORWARD";
 
     private final BluetoothGattServerCallback serverCallback = new BluetoothGattServerCallback() {
         @Override public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
@@ -107,6 +110,9 @@ public class MainActivity extends Activity {
                 "   BT: " + (enabled ? "ON" : "OFF") +
                 "   ADV: " + (advertiserApi ? "YES" : "NO"));
 
+        mediaController = new RokidMediaController(this,
+                text -> runOnUiThread(() -> commandText.setText(text)));
+        mediaController.init();
         requestBlePermissionsIfNeeded();
     }
 
@@ -251,17 +257,17 @@ public class MainActivity extends Activity {
             try {
                 switch (command) {
                     case "PHOTO":
-                        sendRokidScene("ar_picture", true);
-                        commandText.setText("ACTION: PHOTO → ar_picture");
+                        mediaController.takePhoto();
                         break;
                     case "VIDEO":
-                        videoSceneOpen = !videoSceneOpen;
-                        sendRokidScene("mix_record", videoSceneOpen);
-                        commandText.setText("ACTION: VIDEO → " + (videoSceneOpen ? "START" : "STOP"));
+                        mediaController.toggleVideo();
                         break;
                     case "VOICE":
-                        sendRokidScene("audio_record", true);
-                        commandText.setText("ACTION: RECORDER → audio_record");
+                        launchStock("com.rokid.os.sprite.launcher.page.audio.AudioPageActivity", "AUDIO");
+                        break;
+                    case "MENU":
+                        openOverlayMenu();
+                        commandText.setText("ACTION: MENU");
                         break;
                     case "NEXUS":
                         Intent nexus = new Intent("com.anezium.rokidbus.glasses.action.OPEN_LAUNCHER");
@@ -395,6 +401,14 @@ public class MainActivity extends Activity {
         commandText.setText("APP: " + label);
     }
 
+    private void openOverlayMenu() {
+        // OverlayRec / Rokid firmware menu combo: two-finger LEFT, LEFT, RIGHT, RIGHT.
+        sendBroadcast(new Intent(ACTION_SWIPE_BACK));
+        new android.os.Handler(getMainLooper()).postDelayed(() -> sendBroadcast(new Intent(ACTION_SWIPE_BACK)), 120);
+        new android.os.Handler(getMainLooper()).postDelayed(() -> sendBroadcast(new Intent(ACTION_SWIPE_FORWARD)), 240);
+        new android.os.Handler(getMainLooper()).postDelayed(() -> sendBroadcast(new Intent(ACTION_SWIPE_FORWARD)), 360);
+    }
+
     private void sendRokidScene(String scene, boolean open) {
         Intent intent = new Intent(ACTION_CMD);
         intent.putExtra("cmd_type", "control_scene");
@@ -421,6 +435,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         stopReceiver();
+        if (mediaController != null) mediaController.release();
         super.onDestroy();
     }
 
