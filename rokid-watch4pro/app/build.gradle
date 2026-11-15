@@ -1,0 +1,16 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.rokid.watchhidcheck'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.rokid.watchhidcheck'
+        minSdk 26
+        targetSdk 32
+        versionCode 4
+        versionName '0.4-cursor'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
