@@ -17,6 +17,7 @@ import android.bluetooth.le.AdvertiseSettings;
 import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.content.pm.PackageManager;
 import android.content.Intent;
+import android.content.ComponentName;
 import android.graphics.Color;
 import android.media.AudioManager;
 import android.net.Uri;
@@ -24,6 +25,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.ParcelUuid;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -48,7 +50,9 @@ public class MainActivity extends Activity {
     private TextView gattText;
     private TextView clientText;
     private TextView commandText;
+    private TextView accessText;
     private Button startButton;
+    private static final int REQ_MEDIA = 52;
     private boolean videoSceneOpen = false;
     private RokidMediaController mediaController;
 
@@ -114,6 +118,8 @@ public class MainActivity extends Activity {
                 text -> runOnUiThread(() -> commandText.setText(text)));
         mediaController.init();
         requestBlePermissionsIfNeeded();
+        requestMediaPermissionsIfNeeded();
+        refreshAccessState();
     }
 
     private void buildUi() {
@@ -131,12 +137,22 @@ public class MainActivity extends Activity {
         gattText = label("GATT SERVER: IDLE", 16, 0xFFA9B0C0);
         clientText = label("CLIENT: NONE", 16, 0xFFA9B0C0);
         commandText = label("LAST COMMAND: —", 18, Color.WHITE);
+        accessText = label("ACCESS: CHECKING", 16, 0xFFA9B0C0);
 
         root.addView(hardwareText, full());
         root.addView(advertiseText, full());
         root.addView(gattText, full());
         root.addView(clientText, full());
         root.addView(commandText, full());
+        root.addView(accessText, full());
+
+        Button accessButton = new Button(this);
+        accessButton.setText("ENABLE ACCESSIBILITY");
+        accessButton.setOnClickListener(v -> {
+            try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); }
+            catch (Throwable ignored) {}
+        });
+        root.addView(accessButton, full());
 
         startButton = new Button(this);
         startButton.setText("START BLE RECEIVER");
@@ -167,6 +183,52 @@ public class MainActivity extends Activity {
         return lp;
     }
 
+    private void requestMediaPermissionsIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 23) {
+            boolean cam = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+            boolean mic = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+            if (!cam || !mic) {
+                requestPermissions(new String[] {
+                        Manifest.permission.CAMERA,
+                        Manifest.permission.RECORD_AUDIO
+                }, REQ_MEDIA);
+            }
+        }
+    }
+
+    private void refreshAccessState() {
+        if (accessText == null) return;
+        boolean a11y = BleNavigationService.isReady() || isAccessibilityServiceEnabled();
+        boolean cam = Build.VERSION.SDK_INT < 23 ||
+                checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+        boolean mic = Build.VERSION.SDK_INT < 23 ||
+                checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+        accessText.setText("ACCESS: A11Y " + (a11y ? "ON" : "OFF") +
+                "  CAM " + (cam ? "ON" : "OFF") +
+                "  MIC " + (mic ? "ON" : "OFF"));
+    }
+
+    private boolean isAccessibilityServiceEnabled() {
+        try {
+            String expected = new ComponentName(this, BleNavigationService.class).flattenToString();
+            String enabled = Settings.Secure.getString(
+                    getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            if (enabled == null) return false;
+            TextUtils.SimpleStringSplitter splitter = new TextUtils.SimpleStringSplitter(':');
+            splitter.setString(enabled);
+            while (splitter.hasNext()) {
+                String component = splitter.next();
+                if (expected.equalsIgnoreCase(component)) return true;
+            }
+        } catch (Throwable ignored) {}
+        return false;
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        refreshAccessState();
+    }
+
     private void requestBlePermissionsIfNeeded() {
         if (Build.VERSION.SDK_INT >= 31) {
             if (checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED ||
@@ -184,7 +246,9 @@ public class MainActivity extends Activity {
         if (requestCode == REQ_PERMS) {
             boolean ok = true;
             for (int result : grantResults) ok &= result == PackageManager.PERMISSION_GRANTED;
-            advertiseText.setText(ok ? "PERMISSIONS: OK" : "PERMISSIONS: DENIED");
+            advertiseText.setText(ok ? "BLE PERMISSIONS: OK" : "BLE PERMISSIONS: DENIED");
+        } else if (requestCode == REQ_MEDIA) {
+            refreshAccessState();
         }
     }
 
