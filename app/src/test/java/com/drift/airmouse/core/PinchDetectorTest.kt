@@ -54,6 +54,17 @@ class PinchDetectorTest {
     }
 
     @Test
+    fun threeQuickPinchesAreOneTriple() {
+        val tripleDetector = PinchDetector(
+            PinchDetector.thresholdFor(null, 2),
+            holdEnabled = true,
+            doubleEnabled = true,
+            tripleEnabled = true,
+        )
+        assertEquals(listOf(Event.TRIPLE), feed(tripleDetector, 220, tap(30) + tap(60) + tap(90)))
+    }
+
+    @Test
     fun pinchesFarApartAreTwoSingles() {
         assertEquals(listOf(Event.SINGLE, Event.SINGLE), feed(detector(), 300, tap(30) + tap(150)))
     }
