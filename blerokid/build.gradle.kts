@@ -19,3 +19,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
+
+
+dependencies {
+    implementation("com.rokid.security:glass3.open.sdk:2.2.2-E")
+}
