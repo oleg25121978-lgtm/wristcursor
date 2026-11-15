@@ -140,6 +140,7 @@ class DriftRokidService : AccessibilityService() {
             msg == "key down" -> main.post { swipeVertical(up = false) }
             msg == "key enter" -> main.post { tap(cursorX, cursorY, 45) }
             msg == "key back" || msg == "key esc" -> main.post { performGlobalAction(GLOBAL_ACTION_BACK) }
+            msg == "key home" -> main.post { performGlobalAction(GLOBAL_ACTION_HOME) }
             msg.startsWith("type ") -> main.post { typeText(msg.substringAfter("type ")) }
             msg == "BYE" -> Unit
         }
