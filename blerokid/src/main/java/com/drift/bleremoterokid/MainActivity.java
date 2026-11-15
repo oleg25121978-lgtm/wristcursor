@@ -16,6 +16,7 @@ import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertiseSettings;
 import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.content.pm.PackageManager;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -45,6 +46,9 @@ public class MainActivity extends Activity {
     private TextView clientText;
     private TextView commandText;
     private Button startButton;
+    private boolean videoSceneOpen = false;
+
+    private static final String ACTION_CMD = "com.rokid.os.master.assist.server.cmd";
 
     private final BluetoothGattServerCallback serverCallback = new BluetoothGattServerCallback() {
         @Override public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
@@ -65,7 +69,7 @@ public class MainActivity extends Activity {
             if (!COMMAND_UUID.equals(characteristic.getUuid())) return;
 
             String command = value == null ? "" : new String(value, StandardCharsets.UTF_8).trim();
-            runOnUiThread(() -> commandText.setText("LAST COMMAND: " + command));
+            executeCommand(command);
 
             if (responseNeeded && gattServer != null) {
                 try {
@@ -237,6 +241,47 @@ public class MainActivity extends Activity {
         } catch (Throwable t) {
             advertiseText.setText("BLE: ERROR " + t.getClass().getSimpleName());
         }
+    }
+
+    private void executeCommand(String command) {
+        runOnUiThread(() -> {
+            try {
+                switch (command) {
+                    case "PHOTO":
+                        sendRokidScene("ar_picture", true);
+                        commandText.setText("ACTION: PHOTO → ar_picture");
+                        break;
+                    case "VIDEO":
+                        videoSceneOpen = !videoSceneOpen;
+                        sendRokidScene("mix_record", videoSceneOpen);
+                        commandText.setText("ACTION: VIDEO → " + (videoSceneOpen ? "START" : "STOP"));
+                        break;
+                    case "VOICE":
+                        sendRokidScene("audio_record", true);
+                        commandText.setText("ACTION: RECORDER → audio_record");
+                        break;
+                    case "KEY1":
+                    case "KEY2":
+                    case "KEY3":
+                    case "KEY4":
+                        commandText.setText("ACTION: " + command + " → RESERVED");
+                        break;
+                    default:
+                        commandText.setText("UNKNOWN: " + command);
+                        break;
+                }
+            } catch (Throwable t) {
+                commandText.setText("ACTION ERROR: " + t.getClass().getSimpleName());
+            }
+        });
+    }
+
+    private void sendRokidScene(String scene, boolean open) {
+        Intent intent = new Intent(ACTION_CMD);
+        intent.putExtra("cmd_type", "control_scene");
+        intent.putExtra("scene", scene);
+        intent.putExtra("open", open ? "true" : "false");
+        sendBroadcast(intent);
     }
 
     private void stopReceiver() {
