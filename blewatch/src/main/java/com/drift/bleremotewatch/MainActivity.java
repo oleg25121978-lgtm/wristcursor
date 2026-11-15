@@ -12,7 +12,6 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
-import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.pm.PackageManager;
@@ -30,7 +29,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.UUID;
 
 public class MainActivity extends Activity {
@@ -50,16 +48,44 @@ public class MainActivity extends Activity {
     private TextView lastText;
     private Button scanButton;
     private Button[] commandButtons;
+    private int seenDevices = 0;
 
     private final ScanCallback scanCallback = new ScanCallback() {
         @Override public void onScanResult(int callbackType, ScanResult result) {
-            stopScan();
+            seenDevices++;
             BluetoothDevice device = result.getDevice();
+            boolean matches = false;
+            if (result.getScanRecord() != null && result.getScanRecord().getServiceUuids() != null) {
+                for (ParcelUuid uuid : result.getScanRecord().getServiceUuids()) {
+                    if (SERVICE_UUID.equals(uuid.getUuid())) {
+                        matches = true;
+                        break;
+                    }
+                }
+            }
+
+            final boolean foundRokid = matches;
+            final String address;
+            final String name;
+            try {
+                address = device.getAddress();
+                name = device.getName();
+            } catch (SecurityException e) {
+                runOnUiThread(() -> scanText.setText("SCAN: DEVICE FOUND, NO PERMISSION"));
+                return;
+            }
+
             runOnUiThread(() -> {
-                scanText.setText("SCAN: FOUND " + device.getAddress());
-                linkText.setText("GATT: CONNECTING");
+                scanText.setText("SCAN: " + seenDevices + " devices; last " +
+                        (name == null ? "unnamed" : name) + " " + address +
+                        (foundRokid ? "  [ROKID SERVICE]" : ""));
             });
-            connect(device);
+
+            if (foundRokid) {
+                stopScan();
+                runOnUiThread(() -> linkText.setText("GATT: CONNECTING"));
+                connect(device);
+            }
         }
 
         @Override public void onScanFailed(int errorCode) {
@@ -237,19 +263,17 @@ public class MainActivity extends Activity {
         scanText.setText("SCAN: RUNNING");
         linkText.setText("GATT: WAITING");
 
-        ScanFilter filter = new ScanFilter.Builder()
-                .setServiceUuid(new ParcelUuid(SERVICE_UUID))
-                .build();
+        seenDevices = 0;
         ScanSettings settings = new ScanSettings.Builder()
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                 .build();
 
         try {
-            scanner.startScan(Collections.singletonList(filter), settings, scanCallback);
+            scanner.startScan(null, settings, scanCallback);
             handler.postDelayed(() -> {
                 if (commandCharacteristic == null) {
                     stopScan();
-                    scanText.setText("SCAN: NO ROKID BLE RECEIVER");
+                    scanText.setText("SCAN: " + seenDevices + " BLE devices, ROKID SERVICE NOT FOUND");
                 }
             }, 15000);
         } catch (SecurityException e) {
