@@ -260,6 +260,12 @@ public class MainActivity extends Activity {
                         sendRokidScene("audio_record", true);
                         commandText.setText("ACTION: RECORDER → audio_record");
                         break;
+                    case "NEXUS":
+                        Intent nexus = new Intent("com.anezium.rokidbus.glasses.action.OPEN_LAUNCHER");
+                        nexus.setPackage("com.anezium.rokidbus.glasses");
+                        sendBroadcast(nexus);
+                        commandText.setText("ACTION: NEXUS → OPEN");
+                        break;
                     case "LEFT":
                     case "RIGHT":
                     case "UP":
