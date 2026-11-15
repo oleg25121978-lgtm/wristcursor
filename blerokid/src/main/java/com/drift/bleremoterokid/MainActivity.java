@@ -260,6 +260,19 @@ public class MainActivity extends Activity {
                         sendRokidScene("audio_record", true);
                         commandText.setText("ACTION: RECORDER → audio_record");
                         break;
+                    case "LEFT":
+                    case "RIGHT":
+                    case "UP":
+                    case "DOWN":
+                    case "OK":
+                    case "BACK":
+                    case "HOME":
+                    case "TOUCH1":
+                    case "TOUCH2":
+                    case "TOUCH3":
+                        boolean navOk = BleNavigationService.execute(command);
+                        commandText.setText("NAV: " + command + (navOk ? " → SENT" : " → ENABLE ACCESSIBILITY"));
+                        break;
                     case "KEY1":
                     case "KEY2":
                     case "KEY3":
