@@ -8,38 +8,68 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 
 class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val pad = (18 * resources.displayMetrics.density).toInt()
-        val root = LinearLayout(this).apply {
+        val pad = (12 * resources.displayMetrics.density).toInt()
+
+        val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(pad, pad, pad, pad)
         }
 
-        root.addView(TextView(this).apply {
+        val openButton = Button(this).apply {
+            text = "OPEN ACCESSIBILITY"
+            isFocusable = true
+            isFocusableInTouchMode = true
+            setOnClickListener { openAccessibility() }
+        }
+        column.addView(
+            openButton,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        column.addView(TextView(this).apply {
             text = "Drift → Rokid Receiver"
-            textSize = 22f
+            textSize = 20f
             gravity = Gravity.CENTER
-        }, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            setPadding(0, pad, 0, pad / 2)
+        })
 
-        root.addView(TextView(this).apply {
-            text = "1. Enable this app in Accessibility.\n2. Keep the glasses and watch on the same Wi-Fi.\n3. In Drift on the watch choose Wi-Fi and select “Rokid Glasses”.\n\nA cyan/white cursor will appear when the Accessibility service is running."
-            textSize = 16f
-            setPadding(0, pad, 0, pad)
-        }, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        column.addView(TextView(this).apply {
+            text = "1. Enable Drift Rokid Receiver in Accessibility.\n" +
+                "2. Put Rokid and Huawei Watch on the same Wi‑Fi / phone hotspot.\n" +
+                "3. On the watch: Drift → Wi‑Fi → Rokid Glasses."
+            textSize = 15f
+        })
 
-        root.addView(Button(this).apply {
-            text = "Open Accessibility"
-            setOnClickListener {
-                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            }
-        }, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+            addView(column)
+        }
+        setContentView(scroll)
 
-        setContentView(root)
+        openButton.requestFocus()
+
+        // Rokid has no normal touch UI in many screens, so open Accessibility automatically.
+        if (savedInstanceState == null) {
+            openButton.postDelayed({ openAccessibility() }, 700)
+        }
+    }
+
+    private fun openAccessibility() {
+        runCatching {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        }
     }
 }
