@@ -1,3 +1,4 @@
+// Adapted from Anezium/R08-Access-Bridge (Apache-2.0).
 package com.drift.bleremoterokid;
 
 import android.content.ComponentName;
@@ -9,35 +10,37 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Parcel;
 import android.os.RemoteException;
-import android.os.SystemClock;
+import android.util.Log;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
+/** Small adapter for the firmware's exported media Binder (FW 1.28). No vendor SDK needed. */
 final class NativeRecordingBridge {
-    interface Listener { void onStatus(String text); }
-
+    private static final String TAG = "BleNativeRecording";
     private static final String PACKAGE = "com.rokid.os.sprite.assistserver";
-    private static final String SERVICE_CLASS = "com.rokid.os.sprite.assist.MasterAssistService";
     private static final String SERVER = "com.rokid.os.sprite.assist.server.IAssistServer";
     private static final String CLIENT = "com.rokid.os.sprite.assist.client.IAssistClient";
-
     private final Context context;
     private final Handler handler;
-    private final Listener listener;
     private final NativeRecordingState state = new NativeRecordingState();
-
     private IBinder server;
     private boolean bound;
     private boolean started;
     private int serverUid = -1;
     private long pendingUntil;
-    private boolean requestedVideo;
-    private boolean requestedAudio;
+
+    interface Listener { void onStatus(String text); }
+    private final Listener listener;
 
     NativeRecordingBridge(Context context, Handler handler, Listener listener) {
-        this.context = context.getApplicationContext();
+        this.context = context;
         this.handler = handler;
         this.listener = listener;
+    }
+
+    private void status(String text) {
+        if (listener != null) listener.onStatus(text);
     }
 
     private final Binder callback = new Binder() {
@@ -47,31 +50,30 @@ final class NativeRecordingBridge {
                 reply.writeString(CLIENT);
                 return true;
             }
-            if (serverUid >= 0 && Binder.getCallingUid() != serverUid) return false;
+            if (Binder.getCallingUid() != serverUid) return false;
             data.enforceInterface(CLIENT);
-
             if (code == 1) {
+                // RegisterResult has no fields (only the nullable Parcelable marker).
                 data.readInt();
                 reply.writeNoException();
                 return true;
             }
-
             if (code == 2) {
                 if (data.readInt() != 0) {
-                    data.readLong();
-                    data.readString();
-                    data.readString();
-                    data.readLong();
+                    data.readLong(); // messageId
+                    data.readString(); // packageName
+                    data.readString(); // infoType
+                    data.readLong(); // time
                     String message = data.readString();
                     if (message != null && message.length() <= 65536) {
-                        handler.post(() -> receive(message));
+                        IBinder source = server;
+                        handler.post(() -> { if (source == server) receive(message); });
                     }
                 }
                 reply.writeNoException();
                 reply.writeInt(1);
                 return true;
             }
-
             if (code == 3) {
                 data.readString();
                 data.readString();
@@ -80,7 +82,6 @@ final class NativeRecordingBridge {
                 reply.writeByteArray(bytes);
                 return true;
             }
-
             return super.onTransact(code, data, reply, flags);
         }
     };
@@ -92,21 +93,21 @@ final class NativeRecordingBridge {
             try {
                 if (!SERVER.equals(binder.getInterfaceDescriptor())) {
                     server = null;
-                    status("NATIVE MEDIA: WRONG SERVICE");
                     return;
                 }
                 transact(1, null);
+                Log.i(TAG, "Native media service connected");
                 status("NATIVE MEDIA: READY");
-            } catch (Throwable t) {
+            } catch (RemoteException | RuntimeException exception) {
                 server = null;
-                status("NATIVE MEDIA ERROR: " + t.getClass().getSimpleName());
+                Log.w(TAG, "Cannot register native media client", exception);
             }
         }
 
         @Override public void onServiceDisconnected(ComponentName name) {
             server = null;
             state.reset();
-            status("NATIVE MEDIA: DISCONNECTED");
+            pendingUntil = 0L;
         }
 
         @Override public void onBindingDied(ComponentName name) {
@@ -115,8 +116,7 @@ final class NativeRecordingBridge {
         }
 
         @Override public void onNullBinding(ComponentName name) {
-            server = null;
-            status("NATIVE MEDIA: NULL BINDING");
+            stop();
         }
     };
 
@@ -125,27 +125,28 @@ final class NativeRecordingBridge {
         started = true;
         try {
             serverUid = context.getPackageManager().getApplicationInfo(PACKAGE, 0).uid;
-            Intent intent = new Intent().setComponent(new ComponentName(PACKAGE, SERVICE_CLASS));
-            bound = context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
-            status(bound ? "NATIVE MEDIA: BINDING" : "NATIVE MEDIA: BIND FAILED");
-        } catch (Throwable t) {
-            bound = false;
-            status("NATIVE MEDIA BIND ERROR: " + t.getClass().getSimpleName());
+            bound = context.bindService(new Intent().setComponent(new ComponentName(PACKAGE,
+                    "com.rokid.os.sprite.assist.MasterAssistService")), connection, Context.BIND_AUTO_CREATE);
+        } catch (Exception exception) {
+            Log.w(TAG, "Native media service unavailable", exception);
+            status("NATIVE MEDIA: UNAVAILABLE");
         }
     }
 
     void stop() {
         started = false;
         if (server != null) {
-            try { transact(2, null); } catch (Throwable ignored) {}
+            try { transact(2, null); } catch (RemoteException | RuntimeException ignored) { }
         }
         server = null;
         state.reset();
         pendingUntil = 0L;
-        if (bound) {
-            try { context.unbindService(connection); } catch (Throwable ignored) {}
-        }
+        if (bound) context.unbindService(connection);
         bound = false;
+    }
+
+    boolean isReady() {
+        return server != null && state.known;
     }
 
     boolean takePhoto() {
@@ -154,88 +155,64 @@ final class NativeRecordingBridge {
         return ok;
     }
 
-    boolean toggleVideo() {
-        if (server == null) {
-            status("VIDEO: NATIVE NOT READY");
-            return false;
-        }
-        if (SystemClock.uptimeMillis() < pendingUntil) return true;
-
-        boolean running = state.known ? state.video : requestedVideo;
-        boolean start = !running;
-        boolean ok = command(false, start);
-        if (ok) {
-            requestedVideo = start;
-            status(start ? "VIDEO: NATIVE START" : "VIDEO: NATIVE STOP");
-        }
-        return ok;
-    }
-
-    boolean toggleAudio() {
-        if (server == null) {
-            status("AUDIO: NATIVE NOT READY");
-            return false;
-        }
-        if (SystemClock.uptimeMillis() < pendingUntil) return true;
-
-        boolean running = state.known ? state.audio : requestedAudio;
-        boolean start = !running;
-        boolean ok = command(true, start);
-        if (ok) {
-            requestedAudio = start;
-            status(start ? "AUDIO: NATIVE START" : "AUDIO: NATIVE STOP");
-        }
-        return ok;
-    }
-
-    boolean openAiAssist() {
-        if (server == null) {
-            status("ROKID AI: NATIVE NOT READY");
-            return false;
-        }
+    boolean openAi() {
+        if (server == null) return false;
         try {
-            JSONObject payload = new JSONObject()
-                    .put("sceneKey", "ai_assist")
-                    .put("useTips", true);
-            transact(3, new JSONObject()
-                    .put("type", "cmd_open_scene_with_ignore_tips")
-                    .put("data", payload)
-                    .toString());
+            JSONObject data = new JSONObject().put("sceneKey", "ai_assist").put("useTips", true);
+            transact(3, new JSONObject().put("type", "cmd_open_scene_with_ignore_tips").put("data", data).toString());
             status("ROKID AI: NATIVE OPEN");
             return true;
-        } catch (Throwable t) {
-            status("ROKID AI ERROR: " + t.getClass().getSimpleName());
+        } catch (RemoteException | JSONException | RuntimeException exception) {
+            Log.w(TAG, "Native AI request failed", exception);
             return false;
         }
-    }
-
-    private boolean command(boolean audio, boolean start) {
-        String type = "cmd_" + (start ? "start_" : "stop_") +
-                (audio ? "audio_record" : "video_record");
-        String key = audio ? "audioOpenType" : "cameraOpenType";
-        String value = audio ? "audio_with_ui" : "video_with_ui";
-        boolean ok = send(type, key, value);
-        if (ok) pendingUntil = SystemClock.uptimeMillis() + 3000L;
-        return ok;
     }
 
     private boolean send(String type, String key, String value) {
         if (server == null) return false;
         try {
-            JSONObject payload = new JSONObject().put(key, value);
-            JSONObject request = new JSONObject().put("type", type).put("data", payload);
-            transact(3, request.toString());
+            JSONObject data = new JSONObject().put(key, value);
+            transact(3, new JSONObject().put("type", type).put("data", data).toString());
+            Log.i(TAG, "Requested " + type);
             return true;
-        } catch (Throwable t) {
-            status("NATIVE MEDIA SEND ERROR: " + t.getClass().getSimpleName());
+        } catch (RemoteException | JSONException | RuntimeException exception) {
+            Log.w(TAG, "Native media request failed", exception);
             return false;
         }
     }
 
-    private void transact(int code, String json) throws RemoteException {
-        IBinder target = server;
-        if (target == null) throw new RemoteException("server unavailable");
+    boolean toggle(boolean audio) {
+        if (server == null || !state.known) return false;
+        if (android.os.SystemClock.uptimeMillis() < pendingUntil) return true;
+        boolean running = audio ? state.audio : state.video;
+        boolean ok = command(audio, !running);
+        if (ok) status((audio ? "AUDIO" : "VIDEO") + (running ? ": STOP" : ": START"));
+        return ok;
+    }
 
+    boolean toggleVideo() { return toggle(false); }
+    boolean toggleAudio() { return toggle(true); }
+    boolean openAiAssist() { return openAi(); }
+
+    boolean stopRecording() {
+        if (server == null || (!state.video && !state.audio)) return false;
+        // A stop is explicit and idempotent. Never inject a camera toggle for Back.
+        boolean sent = false;
+        if (state.video) sent |= command(false, false);
+        if (state.audio) sent |= command(true, false);
+        return sent;
+    }
+
+    private boolean command(boolean audio, boolean start) {
+        String type = "cmd_" + (start ? "start_" : "stop_") + (audio ? "audio_record" : "video_record");
+        if (send(type, audio ? "audioOpenType" : "cameraOpenType", audio ? "audio_with_ui" : "video_with_ui")) {
+            pendingUntil = android.os.SystemClock.uptimeMillis() + 3000L;
+            return true;
+        }
+        return false;
+    }
+
+    private void transact(int code, String json) throws RemoteException {
         Parcel data = Parcel.obtain();
         Parcel reply = Parcel.obtain();
         try {
@@ -243,10 +220,7 @@ final class NativeRecordingBridge {
             data.writeString(context.getPackageName());
             if (code == 1) data.writeStrongBinder(callback);
             else if (code == 3) data.writeString(json);
-
-            if (!target.transact(code, data, reply, 0)) {
-                throw new RemoteException("unsupported transaction " + code);
-            }
+            if (!server.transact(code, data, reply, 0)) throw new RemoteException("Unsupported media transaction");
             reply.readException();
         } finally {
             data.recycle();
@@ -255,18 +229,14 @@ final class NativeRecordingBridge {
     }
 
     private void receive(String message) {
+        if (server == null) return;
         try {
             if (state.update(new JSONObject(message))) {
-                requestedVideo = state.video;
-                requestedAudio = state.audio;
                 pendingUntil = 0L;
-                status("MEDIA STATE: VIDEO " + (state.video ? "ON" : "OFF") +
-                        " AUDIO " + (state.audio ? "ON" : "OFF"));
+                Log.i(TAG, "Recording state known=" + state.known + " video=" + state.video + " audio=" + state.audio);
             }
-        } catch (Throwable ignored) {}
-    }
-
-    private void status(String text) {
-        if (listener != null) listener.onStatus(text);
+        } catch (JSONException ignored) {
+            // Other assistant messages are unrelated to recording.
+        }
     }
 }
