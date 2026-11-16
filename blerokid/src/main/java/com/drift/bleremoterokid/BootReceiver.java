@@ -18,6 +18,7 @@ public final class BootReceiver extends BroadcastReceiver {
         }
         try {
             restoreAccessibility(context);
+            SelfArmRecovery.onBoot(context);
             Intent service = new Intent(context, BleGattService.class)
                     .putExtra("auto_start", true);
             if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(service);
