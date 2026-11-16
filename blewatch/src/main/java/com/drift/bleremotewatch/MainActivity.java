@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.UUID;
 
 public class MainActivity extends Activity {
+    private static volatile MainActivity activeInstance;
+
     private static final UUID SERVICE_UUID = UUID.fromString("7f6f1000-5f8a-4c3a-9c6d-3f1d9b7a1000");
     private static final UUID COMMAND_UUID = UUID.fromString("7f6f1001-5f8a-4c3a-9c6d-3f1d9b7a1000");
     private static final int REQ_PERMS = 41;
@@ -143,6 +145,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        activeInstance = this;
         buildUi();
 
         BluetoothManager manager = getSystemService(BluetoothManager.class);
@@ -196,6 +199,7 @@ public class MainActivity extends Activity {
 
     private void clearScreen(String title, Runnable back) {
         screenHost.removeAllViews();
+        allCommandButtons.clear();
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -479,7 +483,9 @@ public class MainActivity extends Activity {
             handler.postDelayed(() -> {
                 if (commandCharacteristic == null) {
                     stopScan();
-                    scanText.setText("SCAN: " + seenDevices + " BLE devices, ROKID SERVICE NOT FOUND");
+                    scanText.setText("SCAN: " + seenDevices + " devices • RETRYING");
+                    handler.removeCallbacks(autoConnectRunnable);
+                    handler.postDelayed(autoConnectRunnable, 1800);
                 }
             }, 15000);
         } catch (SecurityException e) {
@@ -507,6 +513,13 @@ public class MainActivity extends Activity {
         } catch (Throwable t) {
             showLinkError("CONNECT " + t.getClass().getSimpleName());
         }
+    }
+
+    static boolean sendQuickIfConnected(String command) {
+        MainActivity current = activeInstance;
+        if (current == null || current.gatt == null || current.commandCharacteristic == null) return false;
+        current.runOnUiThread(() -> current.send(command));
+        return true;
     }
 
     @SuppressWarnings("deprecation")
@@ -562,6 +575,7 @@ public class MainActivity extends Activity {
         handler.removeCallbacks(touchTapCommit);
         stopScan();
         closeGatt();
+        if (activeInstance == this) activeInstance = null;
         super.onDestroy();
     }
 
