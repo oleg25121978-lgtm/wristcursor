@@ -39,6 +39,13 @@
         </service>
 
         <activity
+            android:name=".RecoveryActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay" />
+
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
