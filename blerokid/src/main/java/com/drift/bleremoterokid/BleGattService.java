@@ -225,7 +225,7 @@ public class BleGattService extends Service {
                     adjustBrightness(-1);
                     break;
                 case "APP_CAMERA":
-                    launchStock("com.rokid.os.sprite.launcher.page.camera.CameraPageActivity", "CAMERA");
+                    launchRokidCamera();
                     break;
                 case "APP_CHAT":
                     if (!nativeMedia.openAiAssist()) {
@@ -374,6 +374,18 @@ public class BleGattService extends Service {
                 Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
         setAction("HOME");
+    }
+
+    private void launchRokidCamera() {
+        Intent intent = new Intent();
+        intent.setClassName(
+                "com.rokid.os.sprite.assistserver",
+                "com.rokid.os.sprite.assist.media.page.green.CameraActivity");
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
+                Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
+        setAction("APP CAMERA ROKID");
     }
 
     private void launchStock(String className, String label) {
