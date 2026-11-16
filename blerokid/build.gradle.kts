@@ -1,5 +1,6 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
 }
 
 android {
@@ -10,8 +11,8 @@ android {
         applicationId = "com.drift.bleremoterokid"
         minSdk = 28
         targetSdk = 36
-        versionCode = 12
-        versionName = "R12"
+        versionCode = 14
+        versionName = "R14"
     }
 
     compileOptions {
@@ -23,4 +24,6 @@ android {
 
 dependencies {
     implementation("com.rokid.security:glass3.open.sdk:2.2.2-E")
+    implementation("com.flyfishxu:kadb:2.1.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 }
