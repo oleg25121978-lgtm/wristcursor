@@ -454,33 +454,25 @@ internal class SelfArmWirelessDebuggingAutomator(
         }
 
         if (!pairingRequested) {
-            val pairingTarget = findFirst(root) {
-                containsText(
-                    it,
-                    "pair device with pairing code",
-                    "pair with device",
-                    "wi-fi pairing code",
-                    "wifi pairing code",
-                    "pairing code",
-                    "associer l'appareil avec un code d'association",
-                    "code d'association",
-                    "codigo de emparejamiento",
-                    "codigo de vinculacion",
-                    "codigo de pareamento",
-                    "codice di accoppiamento",
-                    "kopplungscode",
-                    "使用配对码配对设备",
-                    "配对码",
-                    "페어링 코드로 기기 페어링",
-                    "페어링 코드",
-                    "подключение устройства с помощью кода подключения",
-                    "подключить устройство с помощью кода подключения",
-                    "подключение устройства",
-                    "подключить устройство",
-                    "подключение по коду",
-                    "подключить по коду",
-                    "код подключения",
-                    "код сопряжения",
+            val pairingTarget = findFirst(root) { node ->
+                val value = normalize(rawText(node))
+                val isQr = value.contains("qr") ||
+                    value.contains("куар") ||
+                    value.contains("二维码") ||
+                    value.contains("qr 코드")
+                !isQr && (
+                    value.contains(normalize("pair device with pairing code")) ||
+                    value.contains(normalize("wi-fi pairing code")) ||
+                    value.contains(normalize("wifi pairing code")) ||
+                    value.contains(normalize("pairing code")) ||
+                    value.contains(normalize("подключение устройства с помощью кода подключения")) ||
+                    value.contains(normalize("подключить устройство с помощью кода подключения")) ||
+                    value.contains(normalize("подключение по коду")) ||
+                    value.contains(normalize("подключить по коду")) ||
+                    value.contains(normalize("код подключения")) ||
+                    value.contains(normalize("код сопряжения")) ||
+                    value.contains(normalize("使用配对码配对设备")) ||
+                    value.contains(normalize("페어링 코드로 기기 페어링"))
                 )
             }
             if (pairingTarget != null) {
