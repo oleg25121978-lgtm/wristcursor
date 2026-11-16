@@ -31,7 +31,7 @@ public class MainActivity extends Activity {
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         buildUi();
-        WatchdogFiles.exportScript(this);
+        WatchdogFiles.exportAll(this);
         requestPermissionsIfNeeded();
         startPersistentServiceIfReady();
     }
@@ -165,9 +165,9 @@ public class MainActivity extends Activity {
                 "   MIC " + (mic ? "ON" : "OFF") +
                 "   BRIGHT " + (bright ? "ON" : "OFF"));
         lastText.setText("LAST: " + BleGattService.lastAction);
-        watchdogText.setText(WatchdogFiles.isAlive(this)
-                ? "WATCHDOG: RUNNING"
-                : "WATCHDOG: NOT ARMED");
+        watchdogText.setText(WatchdogFiles.isBridgeAlive(this)
+                ? "BRIDGE: ARMED"
+                : "BRIDGE: NOT ARMED");
     }
 
     private boolean isAccessibilityServiceEnabled() {
