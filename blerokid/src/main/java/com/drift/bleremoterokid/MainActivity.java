@@ -8,6 +8,7 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -59,6 +60,17 @@ public class MainActivity extends Activity {
         });
         root.addView(start, full());
 
+        Button brightness = new Button(this);
+        brightness.setText("ALLOW BRIGHTNESS CONTROL");
+        brightness.setOnClickListener(v -> {
+            try {
+                Intent i = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                        Uri.parse("package:" + getPackageName()));
+                startActivity(i);
+            } catch (Throwable ignored) {}
+        });
+        root.addView(brightness, full());
+
         Button access = new Button(this);
         access.setText("ENABLE ACCESSIBILITY");
         access.setOnClickListener(v -> {
@@ -104,6 +116,9 @@ public class MainActivity extends Activity {
 
     private void startPersistentServiceIfReady() {
         if (!blePermissionReady()) return;
+        if (Build.VERSION.SDK_INT >= 23 &&
+                (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
+                 checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)) return;
         BluetoothManager manager = getSystemService(BluetoothManager.class);
         BluetoothAdapter adapter = manager == null ? null : manager.getAdapter();
         if (adapter == null || !adapter.isEnabled()) {
@@ -140,9 +155,11 @@ public class MainActivity extends Activity {
                 checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
 
         bleText.setText("BLE: " + BleGattService.bleState + "   CLIENT: " + BleGattService.clientState);
+        boolean bright = Build.VERSION.SDK_INT < 23 || Settings.System.canWrite(this);
         accessText.setText("A11Y " + (a11y ? "ON" : "OFF") +
                 "   CAM " + (cam ? "ON" : "OFF") +
-                "   MIC " + (mic ? "ON" : "OFF"));
+                "   MIC " + (mic ? "ON" : "OFF") +
+                "   BRIGHT " + (bright ? "ON" : "OFF"));
         lastText.setText("LAST: " + BleGattService.lastAction);
     }
 
