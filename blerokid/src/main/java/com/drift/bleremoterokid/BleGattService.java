@@ -18,6 +18,9 @@ import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertiseSettings;
 import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.pm.ServiceInfo;
 import android.media.AudioManager;
 import android.net.Uri;
@@ -44,6 +47,26 @@ public class BleGattService extends Service {
     private BluetoothGattServer gattServer;
     private BluetoothLeAdvertiser advertiser;
     private NativeRecordingBridge nativeMedia;
+    private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable retryBle = () -> {
+        if (adapter != null && adapter.isEnabled() && (gattServer == null || advertiser == null)) {
+            startBle();
+        }
+    };
+    private final BroadcastReceiver bluetoothStateReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (!BluetoothAdapter.ACTION_STATE_CHANGED.equals(intent.getAction())) return;
+            int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
+            if (state == BluetoothAdapter.STATE_ON) {
+                handler.removeCallbacks(retryBle);
+                handler.postDelayed(retryBle, 500);
+            } else if (state == BluetoothAdapter.STATE_OFF) {
+                stopBle();
+                bleState = "BLUETOOTH OFF";
+                updateNotification();
+            }
+        }
+    };
 
     private final BluetoothGattServerCallback serverCallback = new BluetoothGattServerCallback() {
         @Override public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
@@ -89,10 +112,8 @@ public class BleGattService extends Service {
         super.onCreate();
         createNotificationChannel();
         if (Build.VERSION.SDK_INT >= 29) {
-            int types = ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA |
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE |
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE;
-            startForeground(NOTIFICATION_ID, buildNotification(), types);
+            startForeground(NOTIFICATION_ID, buildNotification(),
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE);
         } else {
             startForeground(NOTIFICATION_ID, buildNotification());
         }
@@ -100,12 +121,23 @@ public class BleGattService extends Service {
         manager = getSystemService(BluetoothManager.class);
         adapter = manager == null ? null : manager.getAdapter();
 
+        IntentFilter btFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(bluetoothStateReceiver, btFilter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(bluetoothStateReceiver, btFilter);
+        }
+
         nativeMedia = new NativeRecordingBridge(this, new android.os.Handler(getMainLooper()), text -> {
             lastAction = text;
             updateNotification();
         });
         nativeMedia.start();
         startBle();
+        if (adapter == null || !adapter.isEnabled()) {
+            handler.removeCallbacks(retryBle);
+            handler.postDelayed(retryBle, 3000);
+        }
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
@@ -119,8 +151,10 @@ public class BleGattService extends Service {
 
     private void startBle() {
         if (adapter == null || !adapter.isEnabled()) {
-            bleState = "BLUETOOTH OFF";
+            bleState = "BLUETOOTH OFF • WAITING";
             updateNotification();
+            handler.removeCallbacks(retryBle);
+            handler.postDelayed(retryBle, 3000);
             return;
         }
         stopBle();
@@ -445,6 +479,8 @@ public class BleGattService extends Service {
     }
 
     @Override public void onDestroy() {
+        handler.removeCallbacks(retryBle);
+        try { unregisterReceiver(bluetoothStateReceiver); } catch (Throwable ignored) {}
         stopBle();
         if (nativeMedia != null) nativeMedia.stop();
         bleState = "STOPPED";
