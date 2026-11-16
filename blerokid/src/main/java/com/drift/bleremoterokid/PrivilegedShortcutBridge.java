@@ -62,6 +62,17 @@ final class PrivilegedShortcutBridge {
         return true;
     }
 
+    static boolean requestTouchpadKey(Context context, String command) {
+        if (!supportsTouchpadKeys(context)) return false;
+        if (!writeRequest(context, command)) return false;
+        ringDoorbell(context);
+        return true;
+    }
+
+    static boolean supportsTouchpadKeys(Context context) {
+        return supportsFeature(context, BridgeProtocol.FEATURE_TOUCHPAD_KEYS);
+    }
+
     static boolean requestWifiEnabled(Context context, boolean enabled) {
         return writeRequest(context, enabled
                 ? BridgeProtocol.COMMAND_WIFI_ENABLE
@@ -172,7 +183,8 @@ final class PrivilegedShortcutBridge {
     /** True when the live helper is the one this app version ships. */
     static boolean isCurrent(Context context) {
         return supportsNativeEntry(context) && supportsFunctionKeys(context) && supportsAiKey(context)
-                && supportsAssistantPin(context) && supportsAssistantScroll(context);
+                && supportsAssistantPin(context) && supportsAssistantScroll(context)
+                && supportsTouchpadKeys(context);
     }
 
     static String statusLabel(Context context) {
