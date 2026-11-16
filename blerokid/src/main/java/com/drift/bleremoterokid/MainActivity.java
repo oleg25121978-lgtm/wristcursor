@@ -167,7 +167,7 @@ public class MainActivity extends Activity {
         lastText.setText("LAST: " + BleGattService.lastAction);
         watchdogText.setText(WatchdogFiles.isBridgeAlive(this)
                 ? "BRIDGE: ARMED"
-                : "BRIDGE: NOT ARMED");
+                : "BRIDGE: OFF • FALLBACK ACTIVE");
     }
 
     private boolean isAccessibilityServiceEnabled() {
