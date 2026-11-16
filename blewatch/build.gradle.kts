@@ -10,8 +10,8 @@ android {
         applicationId = "com.drift.bleremotewatch"
         minSdk = 28
         targetSdk = 36
-        versionCode = 10
-        versionName = "R10"
+        versionCode = 11
+        versionName = "R11"
     }
 
     compileOptions {
