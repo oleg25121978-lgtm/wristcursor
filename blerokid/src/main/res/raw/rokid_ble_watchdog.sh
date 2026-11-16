@@ -102,8 +102,8 @@ run_loop() {
     while true; do
         # Racing starters can each spawn a loop; only the PID-file owner stays.
         owner="$(read_pid)"
-        if [ -n "$owner" ] && [ "$owner" != "$" ] && is_alive "$owner"; then
-            log_msg "duplicate watchdog pid=$ exits for pid=$owner"
+        if [ -n "$owner" ] && [ "$owner" != "$$" ] && is_alive "$owner"; then
+            log_msg "duplicate watchdog pid=$$ exits for pid=$owner"
             exit 0
         fi
         tick=$((tick + 1))
