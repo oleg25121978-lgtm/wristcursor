@@ -27,6 +27,7 @@ public class MainActivity extends Activity {
     private TextView accessText;
     private TextView lastText;
     private TextView watchdogText;
+    private TextView selfArmText;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -34,6 +35,7 @@ public class MainActivity extends Activity {
         WatchdogFiles.exportAll(this);
         requestPermissionsIfNeeded();
         startPersistentServiceIfReady();
+        SelfArmRecovery.onLaunch(this);
     }
 
     private void buildUi() {
@@ -50,10 +52,12 @@ public class MainActivity extends Activity {
         accessText = label("ACCESS: CHECKING", 16, 0xFFA9B0C0);
         lastText = label("LAST: —", 15, 0xFFA9B0C0);
         watchdogText = label("WATCHDOG: CHECKING", 15, 0xFFA9B0C0);
+        selfArmText = label("SELF-ARM: CHECKING", 15, 0xFFFFD27A);
         root.addView(bleText, full());
         root.addView(accessText, full());
         root.addView(lastText, full());
         root.addView(watchdogText, full());
+        root.addView(selfArmText, full());
 
         Button start = new Button(this);
         start.setText("START / KEEP BLE RUNNING");
@@ -63,6 +67,20 @@ public class MainActivity extends Activity {
             refresh();
         });
         root.addView(start, full());
+
+        Button selfArm = new Button(this);
+        selfArm.setText("SELF-ARM / SURVIVE FORCE-STOP");
+        selfArm.setOnClickListener(v -> {
+            if (!BleNavigationService.isReady()) {
+                SelfArmState.status = "ENABLE ACCESSIBILITY FIRST";
+                try { startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); }
+                catch (Throwable ignored) {}
+            } else if (!BleNavigationService.beginSelfArm()) {
+                SelfArmState.status = "ACCESSIBILITY NOT READY";
+            }
+            refresh();
+        });
+        root.addView(selfArm, full());
 
         Button brightness = new Button(this);
         brightness.setText("ALLOW BRIGHTNESS CONTROL");
@@ -84,7 +102,7 @@ public class MainActivity extends Activity {
         root.addView(access, full());
 
         TextView note = label(
-                "BLE now runs as a foreground service. You can leave this screen; the watch should stay connected.",
+                "First setup: enable Accessibility once, then SELF-ARM. Self-arm pairs to Wireless Debugging locally and installs the force-stop watchdog; no PC or Termux is needed.",
                 14, 0xFFA9B0C0);
         root.addView(note, full());
 
@@ -148,6 +166,7 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         startPersistentServiceIfReady();
+        SelfArmRecovery.onLaunch(this);
         refresh();
     }
 
@@ -168,6 +187,8 @@ public class MainActivity extends Activity {
         watchdogText.setText(WatchdogFiles.isBridgeAlive(this)
                 ? "BRIDGE: ARMED"
                 : "BRIDGE: OFF • FALLBACK ACTIVE");
+        boolean configured = SelfArmRecovery.isConfigured(this);
+        selfArmText.setText("SELF-ARM: " + (configured ? "CONFIGURED • " : "") + SelfArmState.status);
     }
 
     private boolean isAccessibilityServiceEnabled() {
