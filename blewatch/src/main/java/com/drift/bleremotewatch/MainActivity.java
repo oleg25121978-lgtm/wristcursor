@@ -221,6 +221,15 @@ public class MainActivity extends Activity {
         tabs2.addView(appsTab, half());
         root.addView(tabs2, full());
 
+        // Always-visible navigation controls.
+        LinearLayout quickNav = new LinearLayout(this);
+        quickNav.setOrientation(LinearLayout.HORIZONTAL);
+        quickNav.addView(commandButton("BACK", "BACK"), quarter());
+        quickNav.addView(commandButton("←", "LEFT"), quarter());
+        quickNav.addView(commandButton("OK", "OK"), quarter());
+        quickNav.addView(commandButton("→", "RIGHT"), quarter());
+        root.addView(quickNav, full());
+
         mediaPage = page();
         navPage = page();
         systemPage = page();
@@ -239,19 +248,12 @@ public class MainActivity extends Activity {
         mediaPage.addView(commandButton("KEY 4", "KEY4"), full());
 
         navPage.addView(commandButton("↑", "UP"), full());
-        LinearLayout navRow = new LinearLayout(this);
-        navRow.setOrientation(LinearLayout.HORIZONTAL);
-        navRow.addView(commandButton("←", "LEFT"), third());
-        navRow.addView(commandButton("OK", "OK"), third());
-        navRow.addView(commandButton("→", "RIGHT"), third());
-        navPage.addView(navRow, full());
         navPage.addView(commandButton("↓", "DOWN"), full());
 
         LinearLayout navRow2 = new LinearLayout(this);
         navRow2.setOrientation(LinearLayout.HORIZONTAL);
-        navRow2.addView(commandButton("BACK", "BACK"), third());
-        navRow2.addView(commandButton("HOME", "HOME"), third());
-        navRow2.addView(commandButton("NEXUS", "NEXUS"), third());
+        navRow2.addView(commandButton("HOME", "HOME"), half());
+        navRow2.addView(commandButton("NEXUS", "NEXUS"), half());
         navPage.addView(navRow2, full());
         navPage.addView(commandButton("MENU", "MENU"), full());
 
@@ -359,6 +361,12 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout.LayoutParams third() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp.setMargins(dp(1), dp(2), dp(1), dp(2));
+        return lp;
+    }
+
+    private LinearLayout.LayoutParams quarter() {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         lp.setMargins(dp(1), dp(2), dp(1), dp(2));
         return lp;
