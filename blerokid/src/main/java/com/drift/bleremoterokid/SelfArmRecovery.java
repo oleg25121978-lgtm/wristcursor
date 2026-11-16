@@ -1,6 +1,7 @@
 package com.drift.bleremoterokid;
 
 import android.content.Context;
+import android.provider.Settings;
 import android.util.Log;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -21,7 +22,7 @@ final class SelfArmRecovery {
     }
 
     static void onBoot(Context context) {
-        rearmAsync(context, new long[]{4000L, 15000L, 45000L, 120000L});
+        rearmAsync(context, new long[]{3000L, 4000L, 8000L, 15000L, 30000L, 60000L});
     }
 
     static void onAccessibilityConnected(Context context) {
@@ -37,10 +38,37 @@ final class SelfArmRecovery {
         Thread thread = new Thread(() -> {
             try {
                 Throwable last = null;
+                boolean adbPrepared = false;
                 for (long delay : delays) {
                     if (delay > 0) Thread.sleep(delay);
                     if (!isConfigured(app)) return;
                     if (PrivilegedShortcutBridge.isCurrent(app)) return;
+
+                    if (!adbPrepared) {
+                        boolean wasEnabled = false;
+                        try {
+                            wasEnabled = Settings.Global.getInt(
+                                    app.getContentResolver(),
+                                    Settings.Global.ADB_ENABLED,
+                                    0) == 1;
+                            Settings.Global.putLong(
+                                    app.getContentResolver(),
+                                    "adb_allowed_connection_time",
+                                    0L);
+                            if (!wasEnabled) {
+                                Settings.Global.putInt(
+                                        app.getContentResolver(),
+                                        Settings.Global.ADB_ENABLED,
+                                        1);
+                                Log.i(TAG, "USB debugging enabled for boot recovery");
+                                Thread.sleep(4000L);
+                            }
+                            adbPrepared = true;
+                        } catch (Throwable t) {
+                            Log.w(TAG, "cannot prepare ADB for boot recovery", t);
+                        }
+                    }
+
                     try {
                         String out = new SelfArmBootstrapper(app).rearmLoopback();
                         Log.i(TAG, "re-arm complete: " + out);
