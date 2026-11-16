@@ -9,7 +9,9 @@ PIDFILE="${BLE_REMOTE_A11Y_PIDFILE:-/data/local/tmp/rokid-ble-a11y-watchdog.pid}
 VERSIONFILE="${BLE_REMOTE_A11Y_VERSIONFILE:-/data/local/tmp/rokid-ble-a11y-watchdog.version}"
 LOGFILE="${BLE_REMOTE_A11Y_LOGFILE:-/data/local/tmp/rokid-ble-a11y-watchdog.log}"
 HEARTBEAT="${BLE_REMOTE_A11Y_HEARTBEAT:-/data/local/tmp/rokid-ble-a11y-watchdog.heartbeat}"
-POLL_SECONDS="${BLE_REMOTE_A11Y_POLL_SECONDS:-1}"
+HEALTHY_SECONDS="${BLE_REMOTE_A11Y_HEALTHY_SECONDS:-180}"
+RECOVERY_SECONDS="${BLE_REMOTE_A11Y_RECOVERY_SECONDS:-30}"
+RECOVERY_CYCLES="${BLE_REMOTE_A11Y_RECOVERY_CYCLES:-3}"
 LOG_HEALTHY_EVERY="${BLE_REMOTE_A11Y_LOG_HEALTHY_EVERY:-30}"
 MAX_LOG_BYTES="${BLE_REMOTE_A11Y_MAX_LOG_BYTES:-65536}"
 
@@ -96,12 +98,12 @@ run_loop() {
     echo "$VERSION" > "$VERSIONFILE"
     log_msg "start pid=$$ version=$VERSION service=$SVC"
     tick=0
+    recovery_left=0
     while true; do
-        # Racing starters (R08 and the Nexus watchdog) can each spawn a loop; only the one named
-        # in the PID file stays.
+        # Racing starters can each spawn a loop; only the PID-file owner stays.
         owner="$(read_pid)"
-        if [ -n "$owner" ] && [ "$owner" != "$$" ] && is_alive "$owner"; then
-            log_msg "duplicate watchdog pid=$$ exits for pid=$owner"
+        if [ -n "$owner" ] && [ "$owner" != "$" ] && is_alive "$owner"; then
+            log_msg "duplicate watchdog pid=$ exits for pid=$owner"
             exit 0
         fi
         tick=$((tick + 1))
@@ -112,12 +114,19 @@ run_loop() {
                 log_msg "healthy tick=$tick pid=$pid"
                 rotate_log
             fi
+            if [ "$recovery_left" -gt 0 ]; then
+                recovery_left=$((recovery_left - 1))
+                sleep "$RECOVERY_SECONDS"
+            else
+                sleep "$HEALTHY_SECONDS"
+            fi
         else
             log_msg "repair_needed tick=$tick reason='$reason' a11y='$a11y_enabled' pid='$pid' svcs='$enabled_services'"
             repair_accessibility
             rotate_log
+            recovery_left="$RECOVERY_CYCLES"
+            sleep "$RECOVERY_SECONDS"
         fi
-        sleep "$POLL_SECONDS"
     done
 }
 
