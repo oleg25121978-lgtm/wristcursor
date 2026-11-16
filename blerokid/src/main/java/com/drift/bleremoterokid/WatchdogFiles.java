@@ -9,11 +9,25 @@ import java.io.InputStream;
 final class WatchdogFiles {
     private WatchdogFiles() {}
 
-    static File exportScript(Context context) {
+    static File exportWatchdog(Context context) {
+        return export(context, R.raw.rokid_ble_watchdog, "rokid_ble_watchdog.sh");
+    }
+
+    static File exportShortcutBridge(Context context) {
+        return export(context, R.raw.rokid_shortcut_bridge, "rokid_shortcut_bridge.sh");
+    }
+
+    static void exportAll(Context context) {
+        exportWatchdog(context);
+        exportShortcutBridge(context);
+        PrivilegedShortcutBridge.ensureReady(context);
+    }
+
+    private static File export(Context context, int raw, String name) {
         File root = context.getExternalFilesDir(null);
         if (root == null) return null;
-        File out = new File(root, "rokid_ble_watchdog.sh");
-        try (InputStream in = context.getResources().openRawResource(R.raw.rokid_ble_watchdog);
+        File out = new File(root, name);
+        try (InputStream in = context.getResources().openRawResource(raw);
              FileOutputStream fos = new FileOutputStream(out, false)) {
             byte[] buffer = new byte[8192];
             int n;
@@ -26,20 +40,19 @@ final class WatchdogFiles {
         }
     }
 
-    static boolean isAlive(Context context) {
-        File root = context.getExternalFilesDir(null);
-        if (root == null) return false;
-        File heartbeat = new File(root, "watchdog.heartbeat");
-        if (!heartbeat.isFile()) return false;
-        long age = System.currentTimeMillis() - heartbeat.lastModified();
-        return age >= 0L && age <= 5000L;
+    static boolean isBridgeAlive(Context context) {
+        return PrivilegedShortcutBridge.isArmed(context);
     }
 
     static String adbArmCommand(Context context) {
-        File script = exportScript(context);
-        if (script == null) return "WATCHDOG SCRIPT UNAVAILABLE";
-        return "cp '" + script.getAbsolutePath() + "' /data/local/tmp/rokid_ble_watchdog.sh && " +
-                "chmod 755 /data/local/tmp/rokid_ble_watchdog.sh && " +
-                "sh /data/local/tmp/rokid_ble_watchdog.sh restart";
+        File watchdog = exportWatchdog(context);
+        File bridge = exportShortcutBridge(context);
+        if (watchdog == null || bridge == null) return "SCRIPTS UNAVAILABLE";
+        return "cp '" + bridge.getAbsolutePath() + "' /data/local/tmp/rokid-ble-shortcut-bridge.sh && " +
+                "cp '" + watchdog.getAbsolutePath() + "' /data/local/tmp/rokid-ble-a11y-watchdog.sh && " +
+                "chmod 755 /data/local/tmp/rokid-ble-shortcut-bridge.sh /data/local/tmp/rokid-ble-a11y-watchdog.sh && " +
+                "pm grant com.drift.bleremoterokid android.permission.WRITE_SECURE_SETTINGS >/dev/null 2>&1 || true; " +
+                "sh /data/local/tmp/rokid-ble-shortcut-bridge.sh restart && " +
+                "sh /data/local/tmp/rokid-ble-a11y-watchdog.sh restart";
     }
 }
