@@ -453,35 +453,49 @@ internal class SelfArmWirelessDebuggingAutomator(
             )
         }
 
-        if (
-            !pairingRequested &&
-            clickText(
-                root,
-                "pair device with pairing code",
-                "associer l'appareil avec un code d'association",
-                "code d'association",
-                "pairing code",
-                "codigo de emparejamiento",
-                "codigo de vinculacion",
-                "codigo de pareamento",
-                "codice di accoppiamento",
-                "kopplungscode",
-                "使用配对码配对设备",
-                "配对码",
-                "페어링 코드로 기기 페어링",
-                "페어링 코드",
-                "подключение устройства с помощью кода подключения",
-                "подключить устройство с помощью кода подключения",
-                "кода подключения",
-                "код подключения",
-            )
-        ) {
-            pairingRequested = true
-            pairingRequestedAt = SystemClock.uptimeMillis()
-            pairingDialogDumped = false
-            report("opening_pairing_code")
-            schedule(1200L)
-            return
+        if (!pairingRequested) {
+            val pairingTarget = findFirst(root) {
+                containsText(
+                    it,
+                    "pair device with pairing code",
+                    "pair with device",
+                    "wi-fi pairing code",
+                    "wifi pairing code",
+                    "pairing code",
+                    "associer l'appareil avec un code d'association",
+                    "code d'association",
+                    "codigo de emparejamiento",
+                    "codigo de vinculacion",
+                    "codigo de pareamento",
+                    "codice di accoppiamento",
+                    "kopplungscode",
+                    "使用配对码配对设备",
+                    "配对码",
+                    "페어링 코드로 기기 페어링",
+                    "페어링 코드",
+                    "подключение устройства с помощью кода подключения",
+                    "подключить устройство с помощью кода подключения",
+                    "подключение устройства",
+                    "подключить устройство",
+                    "подключение по коду",
+                    "подключить по коду",
+                    "код подключения",
+                    "код сопряжения",
+                )
+            }
+            if (pairingTarget != null) {
+                if (canClickNow() && clickNode(pairingTarget)) {
+                    pairingRequested = true
+                    pairingRequestedAt = SystemClock.uptimeMillis()
+                    pairingDialogDumped = false
+                    report("opening_pairing_code")
+                    schedule(1200L)
+                    return
+                }
+                report("opening_pairing_code")
+                schedule(250L)
+                return
+            }
         }
         if (scrollForward(root)) {
             report("searching_pairing_code")
@@ -1138,8 +1152,13 @@ internal class SelfArmWirelessDebuggingAutomator(
 
     private fun rawText(node: AccessibilityNodeInfo?): String {
         if (node == null) return ""
-        val text = node.text?.takeIf { it.isNotEmpty() } ?: node.contentDescription
-        return text?.toString()?.trim().orEmpty()
+        val text = node.text?.toString().orEmpty().trim()
+        val desc = node.contentDescription?.toString().orEmpty().trim()
+        return when {
+            text.isNotBlank() && desc.isNotBlank() && text != desc -> "$text $desc"
+            text.isNotBlank() -> text
+            else -> desc
+        }
     }
 
     private fun normalizedText(node: AccessibilityNodeInfo): String =
