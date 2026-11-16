@@ -46,6 +46,33 @@ final class AccessibilityWindowRoots {
         return true;
     }
 
+    static boolean anyReadableRoot(
+            AccessibilityService service,
+            kotlin.jvm.functions.Function1<? super AccessibilityNodeInfo, Boolean> visitor) {
+        AccessibilityNodeInfo activeRoot = service.getRootInActiveWindow();
+        if (activeRoot != null && !isTinyRoot(activeRoot)) {
+            try {
+                if (Boolean.TRUE.equals(visitor.invoke(activeRoot))) return true;
+            } catch (Throwable ignored) {}
+        }
+        List<AccessibilityWindowInfo> windows = service.getWindows();
+        if (windows == null) return false;
+        for (AccessibilityWindowInfo window : windows) {
+            if (window == null) continue;
+            AccessibilityNodeInfo root = window.getRoot();
+            if (root == null) continue;
+            try {
+                if (!isTinyRoot(root) && Boolean.TRUE.equals(visitor.invoke(root))) {
+                    return true;
+                }
+            } catch (Throwable ignored) {
+            } finally {
+                if (root != activeRoot) root.recycle();
+            }
+        }
+        return false;
+    }
+
     private static boolean shouldUseWindowFallback(AccessibilityService service, AccessibilityNodeInfo root) {
         return root == null || isTinyRoot(root) || hasTinyFocusedSystemWindow(service);
     }
