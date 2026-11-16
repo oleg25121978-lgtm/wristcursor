@@ -13,11 +13,43 @@
 
     <application
         android:allowBackup="false"
-        android:label="Rokid BLE Remote"
+        android:label="Rokid Remote"
+        android:icon="@drawable/ic_rokid_remote"
         android:theme="@android:style/Theme.Material.NoActionBar">
+
         <activity
             android:name=".MainActivity"
+            android:label="Rokid Remote"
+            android:icon="@drawable/ic_rokid_remote"
             android:screenOrientation="portrait"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".QuickPhotoActivity"
+            android:label="Rokid Photo"
+            android:icon="@drawable/ic_rokid_photo"
+            android:theme="@style/QuickActionTheme"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".QuickVideoActivity"
+            android:label="Rokid Video"
+            android:icon="@drawable/ic_rokid_video"
+            android:theme="@style/QuickActionTheme"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
