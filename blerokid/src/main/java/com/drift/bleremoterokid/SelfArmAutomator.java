@@ -230,6 +230,19 @@ final class SelfArmAutomator {
             return;
         }
 
+        // On Rokid "About phone" the build row is below the first screen.
+        // While we are in the developer-enable flow, scroll down instead of
+        // reopening Developer options and bouncing back to the warning page.
+        if (SelfArmState.status.startsWith("ENABLING DEVELOPER OPTIONS") ||
+                SelfArmState.status.startsWith("SEARCHING BUILD NUMBER")) {
+            SelfArmState.status = "SEARCHING BUILD NUMBER";
+            if (scrollForward(root)) {
+                noProgress++;
+                schedule(450);
+                return;
+            }
+        }
+
         noProgress++;
         if (noProgress % 5 == 0) {
             openDeveloperOptions();
@@ -251,6 +264,10 @@ final class SelfArmAutomator {
         AccessibilityNodeInfo node = root == null ? null : findBuildEntry(root);
         if (node == null) {
             SelfArmState.status = "SEARCHING BUILD NUMBER";
+            if (root != null && scrollForward(root)) {
+                handler.postDelayed(() -> tapBuildNumber(count), 450);
+                return;
+            }
             schedule(350);
             return;
         }
