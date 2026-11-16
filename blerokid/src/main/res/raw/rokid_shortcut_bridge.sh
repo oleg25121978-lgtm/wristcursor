@@ -13,7 +13,7 @@ ENTRY_RESPONSE="$BASE/entry_response"
 ENTRY_VERSION=1
 FEATURES="$BASE/features"
 # Space-separated capabilities the app checks before routing a request to this helper.
-FEATURE_LIST="function_key ai_key assistant_pin assistant_scroll touchpad_keys"
+FEATURE_LIST="function_key ai_key assistant_pin assistant_scroll touchpad_keys camera_activity"
 PIDFILE="${BLE_REMOTE_PIDFILE:-/data/local/tmp/rokid-ble-shortcut-bridge.pid}"
 LOGFILE="${BLE_REMOTE_LOGFILE:-/data/local/tmp/rokid-ble-shortcut-bridge.log}"
 INPUT_DEVICE="${BLE_REMOTE_INPUT_DEVICE:-/dev/input/event1}"
@@ -297,6 +297,15 @@ handle_request() {
             else
                 echo "failed ai_key $request $now" > "$RESPONSE"
                 log_msg "ai_key failed request=$request"
+            fi
+            ;;
+        camera_activity)
+            if am start -n com.rokid.os.sprite.assistserver/com.rokid.os.sprite.assist.media.page.green.CameraActivity >/dev/null 2>&1; then
+                echo "ok camera_activity $request $now" > "$RESPONSE"
+                log_msg "camera_activity ok request=$request"
+            else
+                echo "failed camera_activity $request $now" > "$RESPONSE"
+                log_msg "camera_activity failed request=$request"
             fi
             ;;
         tp_up|tp_down|tp_left|tp_right|tp_enter|tp_back)
