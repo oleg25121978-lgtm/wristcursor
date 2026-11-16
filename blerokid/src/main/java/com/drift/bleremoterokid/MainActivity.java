@@ -26,12 +26,10 @@ public class MainActivity extends Activity {
     private TextView bleText;
     private TextView accessText;
     private TextView lastText;
-    private TextView watchdogText;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         buildUi();
-        WatchdogFiles.exportAll(this);
         requestPermissionsIfNeeded();
         startPersistentServiceIfReady();
     }
@@ -49,11 +47,9 @@ public class MainActivity extends Activity {
         bleText = label("BLE SERVICE: CHECKING", 17, Color.WHITE);
         accessText = label("ACCESS: CHECKING", 16, 0xFFA9B0C0);
         lastText = label("LAST: —", 15, 0xFFA9B0C0);
-        watchdogText = label("WATCHDOG: CHECKING", 15, 0xFFA9B0C0);
         root.addView(bleText, full());
         root.addView(accessText, full());
         root.addView(lastText, full());
-        root.addView(watchdogText, full());
 
         Button start = new Button(this);
         start.setText("START / KEEP BLE RUNNING");
@@ -84,7 +80,7 @@ public class MainActivity extends Activity {
         root.addView(access, full());
 
         TextView note = label(
-                "BLE now runs as a foreground service. You can leave this screen; the watch should stay connected.",
+                "NO ADB MODE: grant normal permissions and enable Accessibility once. BLE starts automatically after reboot.",
                 14, 0xFFA9B0C0);
         root.addView(note, full());
 
@@ -165,9 +161,6 @@ public class MainActivity extends Activity {
                 "   MIC " + (mic ? "ON" : "OFF") +
                 "   BRIGHT " + (bright ? "ON" : "OFF"));
         lastText.setText("LAST: " + BleGattService.lastAction);
-        watchdogText.setText(WatchdogFiles.isBridgeAlive(this)
-                ? "BRIDGE: ARMED"
-                : "BRIDGE: OFF • FALLBACK ACTIVE");
     }
 
     private boolean isAccessibilityServiceEnabled() {
