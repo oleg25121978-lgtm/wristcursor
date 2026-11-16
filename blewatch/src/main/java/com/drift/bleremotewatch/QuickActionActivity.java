@@ -82,6 +82,10 @@ abstract class QuickActionActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        if (MainActivity.sendQuickIfConnected(command())) {
+            handler.postDelayed(this::finishAndClose, 120);
+            return;
+        }
         BluetoothManager manager = getSystemService(BluetoothManager.class);
         adapter = manager == null ? null : manager.getAdapter();
         if (!permissionsReady()) {
