@@ -91,11 +91,17 @@ internal class SelfArmBootstrapper(context: Context) {
                 appendLine("printf '%s' '$watchdog' | base64 -d > \"\$WATCHDOG\"")
                 appendLine("chmod 755 \"\$BRIDGE\" \"\$WATCHDOG\"")
                 appendLine("pm grant \$PKG android.permission.WRITE_SECURE_SETTINGS >/dev/null 2>&1 || true")
+                appendLine("settings put global adb_wifi_enabled 1 >/dev/null 2>&1 || true")
                 appendLine("settings put global adb_allowed_connection_time 0 >/dev/null 2>&1 || true")
                 appendLine("setprop persist.adb.tcp.port 5555 >/dev/null 2>&1 || true")
                 appendLine("sh \"\$BRIDGE\" restart")
                 appendLine("sh \"\$WATCHDOG\" restart")
-                appendLine("echo SELF_ARM_OK")
+                appendLine("GRANTED=\$(dumpsys package \$PKG 2>/dev/null | grep -A3 android.permission.WRITE_SECURE_SETTINGS | grep -c 'granted=true')")
+                appendLine("PERSIST_PORT=\$(getprop persist.adb.tcp.port 2>/dev/null)")
+                appendLine("SERVICE_PORT=\$(getprop service.adb.tcp.port 2>/dev/null)")
+                appendLine("echo SELF_ARM_OK grant=\$GRANTED persist=\$PERSIST_PORT service=\$SERVICE_PORT")
+                appendLine("[ \"\$GRANTED\" != \"0\" ] || exit 21")
+                appendLine("[ \"\$PERSIST_PORT\" = \"5555\" ] || exit 22")
             }
             val out = kadb.shell(cmd)
             if (out.exitCode != 0 || !out.output.contains("SELF_ARM_OK")) {
@@ -160,7 +166,7 @@ internal class SelfArmBootstrapper(context: Context) {
             "usb debugging enabled; loopback re-armed: " + out.lineSequence().firstOrNull().orEmpty()
         } catch (t: Throwable) {
             Log.w(TAG, "post-bootstrap loopback re-arm failed", t)
-            "usb debugging enabled; loopback re-arm pending"
+            "usb debugging enabled; loopback failed: " + shortMessage(t)
         }
     }
 
