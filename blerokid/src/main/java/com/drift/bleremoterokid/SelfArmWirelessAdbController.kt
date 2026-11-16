@@ -50,10 +50,36 @@ internal object SelfArmWirelessAdbController {
     }
 
     fun markWirelessDebuggingEnabled(context: Context) {
-        try {
+        enableAdbWifi(context)
+    }
+
+    fun enableAdbWifi(context: Context): Boolean =
+        runCatching {
             Settings.Global.putInt(context.contentResolver, ADB_WIFI_ENABLED, 1)
-        } catch (_: Throwable) {
+            true
+        }.getOrElse {
+            Log.d(TAG, "enableAdbWifi failed", it)
+            false
         }
+
+    fun isEnabled(context: Context): Boolean =
+        runCatching {
+            Settings.Global.getInt(context.contentResolver, ADB_WIFI_ENABLED, 0) == 1
+        }.getOrDefault(false)
+
+    fun waitForWirelessPort(timeoutMs: Long): Int {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        do {
+            val port = readWirelessPort()
+            if (port > 0) return port
+            try {
+                Thread.sleep(150L)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                return 0
+            }
+        } while (System.currentTimeMillis() < deadline)
+        return 0
     }
 
     private fun readWirelessPortProperty(): Int =
