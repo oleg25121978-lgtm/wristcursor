@@ -156,7 +156,7 @@ public class MainActivity extends Activity {
         hardwareText.setText("BLE HW: " + (feature ? "YES" : "NO") + "   BT: " + (enabled ? "ON" : "OFF"));
 
         requestBlePermissionsIfNeeded();
-        handler.postDelayed(autoConnectRunnable, 350);
+        if (permissionsReady()) handler.postDelayed(autoConnectRunnable, 350);
     }
 
     private void buildUi() {
