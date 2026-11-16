@@ -165,9 +165,16 @@ public class MainActivity extends Activity {
                 "   MIC " + (mic ? "ON" : "OFF") +
                 "   BRIGHT " + (bright ? "ON" : "OFF"));
         lastText.setText("LAST: " + BleGattService.lastAction);
-        watchdogText.setText(WatchdogFiles.isBridgeAlive(this)
-                ? "BRIDGE: ARMED"
-                : "BRIDGE: NOT ARMED");
+        boolean bridgeAlive = WatchdogFiles.isBridgeAlive(this);
+        if (bridgeAlive) {
+            watchdogText.setText("BRIDGE: ARMED");
+        } else if (a11y && "READY".equals(BleGattService.clientState)) {
+            watchdogText.setText("BRIDGE: OPTIONAL OFF • CONTROL OK");
+        } else if (a11y) {
+            watchdogText.setText("BRIDGE: OPTIONAL OFF • A11Y OK");
+        } else {
+            watchdogText.setText("BRIDGE: NOT ARMED");
+        }
     }
 
     private boolean isAccessibilityServiceEnabled() {
