@@ -26,10 +26,12 @@ public class MainActivity extends Activity {
     private TextView bleText;
     private TextView accessText;
     private TextView lastText;
+    private TextView watchdogText;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         buildUi();
+        WatchdogFiles.exportScript(this);
         requestPermissionsIfNeeded();
         startPersistentServiceIfReady();
     }
@@ -47,9 +49,11 @@ public class MainActivity extends Activity {
         bleText = label("BLE SERVICE: CHECKING", 17, Color.WHITE);
         accessText = label("ACCESS: CHECKING", 16, 0xFFA9B0C0);
         lastText = label("LAST: —", 15, 0xFFA9B0C0);
+        watchdogText = label("WATCHDOG: CHECKING", 15, 0xFFA9B0C0);
         root.addView(bleText, full());
         root.addView(accessText, full());
         root.addView(lastText, full());
+        root.addView(watchdogText, full());
 
         Button start = new Button(this);
         start.setText("START / KEEP BLE RUNNING");
@@ -161,6 +165,9 @@ public class MainActivity extends Activity {
                 "   MIC " + (mic ? "ON" : "OFF") +
                 "   BRIGHT " + (bright ? "ON" : "OFF"));
         lastText.setText("LAST: " + BleGattService.lastAction);
+        watchdogText.setText(WatchdogFiles.isAlive(this)
+                ? "WATCHDOG: RUNNING"
+                : "WATCHDOG: NOT ARMED");
     }
 
     private boolean isAccessibilityServiceEnabled() {
