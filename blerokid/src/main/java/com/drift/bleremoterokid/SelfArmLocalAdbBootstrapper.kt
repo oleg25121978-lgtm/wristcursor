@@ -23,7 +23,9 @@ internal class SelfArmLocalAdbBootstrapper(context: Context) {
     private val appContext = context.applicationContext
 
     data class BootstrapResult(
+        val pairHost: String,
         val pairPort: Int,
+        val connectHost: String,
         val connectPort: Int,
         val output: String,
         val postBootstrap: String,
@@ -81,7 +83,9 @@ internal class SelfArmLocalAdbBootstrapper(context: Context) {
             PrivilegedShortcutBridge.requestWifiEnabled(appContext, false)
 
             return BootstrapResult(
+                pairHost = LOCALHOST,
                 pairPort = pairPort,
+                connectHost = LOCALHOST,
                 connectPort = connectPort,
                 output = bootstrap.output.trim(),
                 postBootstrap = post,
