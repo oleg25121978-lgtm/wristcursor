@@ -256,7 +256,7 @@ public class MainActivity extends Activity {
         systemPage.addView(briRow, full());
 
         appsPage.addView(commandButton("CAMERA", "APP_CAMERA"), full());
-        appsPage.addView(commandButton("AI CHAT", "APP_CHAT"), full());
+        appsPage.addView(commandButton("HI ROKID", "APP_CHAT"), full());
         appsPage.addView(commandButton("TRANSLATE", "APP_TRANSLATE"), full());
         appsPage.addView(commandButton("TELEPROMPTER", "APP_PROMPTER"), full());
         appsPage.addView(commandButton("MUSIC", "APP_MUSIC"), full());
