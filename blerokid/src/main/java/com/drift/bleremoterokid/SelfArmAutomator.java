@@ -110,19 +110,6 @@ final class SelfArmAutomator {
         String joined = String.join("\n", texts);
         String lower = joined.toLowerCase(Locale.ROOT);
 
-        // Rokid Settings shows this blocking page when Developer options are disabled.
-        // Handle it explicitly instead of repeatedly reopening Developer options.
-        if (lower.contains("сначала включите параметры для разработчика") ||
-            lower.contains("сначала включите настройки разработчика") ||
-            lower.contains("enable developer options first") ||
-            lower.contains("turn on developer options first")) {
-            SelfArmState.status = "ENABLING DEVELOPER OPTIONS";
-            openDeviceInfo();
-            noProgress = 0;
-            schedule(900);
-            return;
-        }
-
         String code = pairingCode(root, joined);
         int endpointPort = SelfArmWirelessAdbController.INSTANCE.readWirelessPort();
         if (endpointPort <= 0) endpointPort = firstEndpointPort(joined);
