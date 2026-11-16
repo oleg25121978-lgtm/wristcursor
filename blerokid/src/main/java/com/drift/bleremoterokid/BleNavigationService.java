@@ -12,13 +12,17 @@ import android.view.View;
 public class BleNavigationService extends AccessibilityService {
     private static volatile BleNavigationService instance;
     private final Handler main = new Handler(Looper.getMainLooper());
+    private R08StyleNavigator navigator;
 
     @Override protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
+        navigator = new R08StyleNavigator(this);
     }
 
-    @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
+    @Override public void onAccessibilityEvent(AccessibilityEvent event) {
+        AccessibilityWindowRoots.noteEvent(event, getPackageName());
+    }
     @Override public void onInterrupt() {}
 
     @Override public void onDestroy() {
@@ -36,19 +40,23 @@ public class BleNavigationService extends AccessibilityService {
     }
 
     private void run(String command) {
+        R08StyleNavigator nav = navigator;
         switch (command) {
             case "LEFT":
             case "UP":
-                if (!moveFocus(false)) swipeRokidPrevious();
+                if (nav != null) nav.backward();
                 break;
             case "RIGHT":
             case "DOWN":
-                if (!moveFocus(true)) swipeRokidNext();
+                if (nav != null) nav.forward();
                 break;
             case "OK":
-                if (!clickFocused()) tapCenter(45);
+                if (nav != null) nav.activate();
+                else tapCenter(45);
                 break;
-            case "TOUCH1": tapCenter(45); break;
+            case "TOUCH1":
+                tapCenter(45);
+                break;
             case "TOUCH2":
                 tapCenter(45);
                 main.postDelayed(() -> tapCenter(45), 130);
@@ -58,10 +66,19 @@ public class BleNavigationService extends AccessibilityService {
                 main.postDelayed(() -> tapCenter(45), 120);
                 main.postDelayed(() -> tapCenter(45), 240);
                 break;
-            case "BACK": performGlobalAction(GLOBAL_ACTION_BACK); break;
-            case "HOME": performGlobalAction(GLOBAL_ACTION_HOME); break;
+            case "BACK":
+                if (nav != null) nav.back();
+                else performGlobalAction(GLOBAL_ACTION_BACK);
+                break;
+            case "HOME":
+                performGlobalAction(GLOBAL_ACTION_HOME);
+                break;
         }
     }
+
+    // R08's GestureDispatcher suppresses re-reading its own injected gestures.
+    // This service does not filter touch events, so no additional suppression is needed.
+    void suppressInjectedGestures(long durationMs) {}
 
     private boolean moveFocus(boolean forward) {
         try {
