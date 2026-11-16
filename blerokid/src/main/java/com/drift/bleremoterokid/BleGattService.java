@@ -224,7 +224,11 @@ public class BleGattService extends Service {
                     launchStock("com.rokid.os.sprite.launcher.page.camera.CameraPageActivity", "CAMERA");
                     break;
                 case "APP_CHAT":
-                    launchStock("com.rokid.os.sprite.launcher.page.chat.ChatPageActivity", "AI CHAT");
+                    Intent assistant = new Intent("com.rokid.os.master.assist.server.cmd");
+                    assistant.putExtra("cmd_type", "mobile_assistant");
+                    assistant.putExtra("open", "true");
+                    sendBroadcast(assistant);
+                    setAction("HI ROKID");
                     break;
                 case "APP_TRANSLATE":
                     launchStock("com.rokid.os.sprite.launcher.page.translate.TranslatePageActivity", "TRANSLATE");
