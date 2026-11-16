@@ -1,8 +1,8 @@
-name: Build BLE Remote Test APKs
+name: Build BLE Remote R08/R10 APKs
 
 on:
   push:
-    branches: [ble-remote-test]
+    branches: [ble-remote-test, ble-remote-r10]
   workflow_dispatch:
 
 jobs:
