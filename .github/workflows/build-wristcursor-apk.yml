@@ -33,7 +33,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build BLE debug APKs
-        run: bash ./gradlew :blewatch:assembleDebug :blerokid:assembleDebug --stacktrace --no-daemon
+        run: bash ./gradlew :blewatch:assembleDebug :blerokid:assembleDebug :blephoto:assembleDebug :blevideo:assembleDebug --stacktrace --no-daemon
 
       - name: Upload watch BLE APK
         if: success()
@@ -49,4 +49,20 @@ jobs:
         with:
           name: Rokid-BLE-Receiver-debug-APK
           path: blerokid/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload one-tap Photo APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rokid-Photo-R10-APK
+          path: blephoto/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload one-tap Video APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rokid-Video-R10-APK
+          path: blevideo/build/outputs/apk/debug/*.apk
           if-no-files-found: error
