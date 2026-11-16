@@ -16,6 +16,14 @@ final class BridgeProtocol {
     static final String FEATURE_AI_KEY = "ai_key";
     static final String FEATURE_ASSISTANT_PIN = "assistant_pin";
     static final String FEATURE_ASSISTANT_SCROLL = "assistant_scroll";
+    static final String FEATURE_TOUCHPAD_KEYS = "touchpad_keys";
+
+    static final String COMMAND_TP_UP = "tp_up";
+    static final String COMMAND_TP_DOWN = "tp_down";
+    static final String COMMAND_TP_LEFT = "tp_left";
+    static final String COMMAND_TP_RIGHT = "tp_right";
+    static final String COMMAND_TP_ENTER = "tp_enter";
+    static final String COMMAND_TP_BACK = "tp_back";
 
     static final String COMMAND_SHORTCUT = "shortcut";
     static final String COMMAND_FUNCTION_KEY_SHORT = "function_key_short";
