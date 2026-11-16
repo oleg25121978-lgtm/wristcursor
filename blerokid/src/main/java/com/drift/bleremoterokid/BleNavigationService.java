@@ -37,6 +37,12 @@ public class BleNavigationService extends AccessibilityService {
 
     public static boolean isReady() { return instance != null; }
 
+    void showFeedback(String message) {
+        if (message != null && !message.trim().isEmpty()) {
+            SelfArmState.status = message.trim();
+        }
+    }
+
     public static boolean beginSelfArm() {
         BleNavigationService service = instance;
         if (service == null || service.selfArmAutomator == null) return false;
