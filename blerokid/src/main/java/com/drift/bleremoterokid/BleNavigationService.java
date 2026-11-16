@@ -13,24 +13,36 @@ public class BleNavigationService extends AccessibilityService {
     private static volatile BleNavigationService instance;
     private final Handler main = new Handler(Looper.getMainLooper());
     private R08StyleNavigator navigator;
+    private SelfArmAutomator selfArmAutomator;
 
     @Override protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
         navigator = new R08StyleNavigator(this);
+        selfArmAutomator = new SelfArmAutomator(this, main);
+        SelfArmRecovery.onAccessibilityConnected(this);
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
         AccessibilityWindowRoots.noteEvent(event, getPackageName());
+        if (selfArmAutomator != null) selfArmAutomator.onAccessibilityEvent();
     }
     @Override public void onInterrupt() {}
 
     @Override public void onDestroy() {
+        if (selfArmAutomator != null) selfArmAutomator.stop();
         if (instance == this) instance = null;
         super.onDestroy();
     }
 
     public static boolean isReady() { return instance != null; }
+
+    public static boolean beginSelfArm() {
+        BleNavigationService service = instance;
+        if (service == null || service.selfArmAutomator == null) return false;
+        service.main.post(service.selfArmAutomator::start);
+        return true;
+    }
 
     public static boolean execute(String command) {
         BleNavigationService service = instance;
