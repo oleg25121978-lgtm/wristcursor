@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Drift"
-include(":app", ":receiver", ":rokidreceiver", ":blewatch", ":blerokid")
+include(":app", ":receiver", ":rokidreceiver", ":blewatch", ":blerokid", ":blephoto", ":blevideo")
