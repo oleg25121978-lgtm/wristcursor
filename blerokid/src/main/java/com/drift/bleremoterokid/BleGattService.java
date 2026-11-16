@@ -182,17 +182,26 @@ public class BleGattService extends Service {
         try {
             switch (command) {
                 case "PHOTO":
-                    nativeMedia.takePhoto();
+                    if (!nativeMedia.takePhoto()) {
+                        setAction(PrivilegedShortcutBridge.requestFunctionKey(this, false)
+                                ? "PHOTO: CAMERA KEY" : "PHOTO: NATIVE/BRIDGE NOT READY");
+                    }
                     break;
                 case "VIDEO":
-                    nativeMedia.toggleVideo();
+                    if (!nativeMedia.toggleVideo()) {
+                        setAction(PrivilegedShortcutBridge.requestFunctionKey(this, true)
+                                ? "VIDEO: CAMERA LONG KEY" : "VIDEO: NATIVE/BRIDGE NOT READY");
+                    }
                     break;
                 case "VOICE":
-                    nativeMedia.toggleAudio();
+                    if (!nativeMedia.toggleAudio()) setAction("AUDIO: NATIVE NOT READY");
                     break;
                 case "MENU":
-                    launchHome();
-                    setAction("MENU / HOME");
+                    setAction(requestRawOrFallback("MENU", null) ? "MENU: KEY SENT" : "MENU: UNMAPPED");
+                    break;
+                case "HI_ROKID":
+                    setAction(PrivilegedShortcutBridge.requestHiRokidShortcut(this)
+                            ? "HI ROKID: EXACT SHORTCUT" : "HI ROKID: BRIDGE NOT ARMED");
                     break;
                 case "NEXUS":
                     Intent nexus = new Intent("com.anezium.rokidbus.glasses.action.OPEN_LAUNCHER");
@@ -255,15 +264,39 @@ public class BleGattService extends Service {
                     launchHome();
                     break;
                 case "LEFT":
+                    if (!PrivilegedShortcutBridge.requestTouchpadKey(this, BridgeProtocol.COMMAND_TP_LEFT))
+                        fallbackNav("LEFT");
+                    else setAction("LEFT: RAW TOUCHPAD");
+                    break;
                 case "RIGHT":
+                    if (!PrivilegedShortcutBridge.requestTouchpadKey(this, BridgeProtocol.COMMAND_TP_RIGHT))
+                        fallbackNav("RIGHT");
+                    else setAction("RIGHT: RAW TOUCHPAD");
+                    break;
                 case "UP":
+                    if (!PrivilegedShortcutBridge.requestTouchpadKey(this, BridgeProtocol.COMMAND_TP_UP))
+                        fallbackNav("UP");
+                    else setAction("UP: RAW TOUCHPAD");
+                    break;
                 case "DOWN":
+                    if (!PrivilegedShortcutBridge.requestTouchpadKey(this, BridgeProtocol.COMMAND_TP_DOWN))
+                        fallbackNav("DOWN");
+                    else setAction("DOWN: RAW TOUCHPAD");
+                    break;
                 case "OK":
+                    if (!PrivilegedShortcutBridge.requestTouchpadKey(this, BridgeProtocol.COMMAND_TP_ENTER))
+                        fallbackNav("OK");
+                    else setAction("OK: RAW TOUCHPAD");
+                    break;
                 case "BACK":
+                    if (!PrivilegedShortcutBridge.requestTouchpadKey(this, BridgeProtocol.COMMAND_TP_BACK))
+                        fallbackNav("BACK");
+                    else setAction("BACK: RAW TOUCHPAD");
+                    break;
                 case "TOUCH1":
                 case "TOUCH2":
                 case "TOUCH3":
-                    setAction(command + (BleNavigationService.execute(command) ? " SENT" : " NEED ACCESSIBILITY"));
+                    fallbackNav(command);
                     break;
                 case "KEY1":
                 case "KEY2":
@@ -277,6 +310,16 @@ public class BleGattService extends Service {
         } catch (Throwable t) {
             setAction(command + " ERROR " + t.getClass().getSimpleName());
         }
+    }
+
+    private void fallbackNav(String command) {
+        setAction(command + (BleNavigationService.execute(command)
+                ? " ACCESSIBILITY" : " NEED ACCESSIBILITY"));
+    }
+
+    // MENU is intentionally not guessed: R08/Nexus document no dedicated native menu scan code.
+    private boolean requestRawOrFallback(String label, String command) {
+        return command != null && PrivilegedShortcutBridge.requestTouchpadKey(this, command);
     }
 
     private void adjustVolume(int direction) {
