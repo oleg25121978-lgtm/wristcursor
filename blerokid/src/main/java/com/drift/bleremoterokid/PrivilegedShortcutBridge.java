@@ -62,6 +62,13 @@ final class PrivilegedShortcutBridge {
         return true;
     }
 
+    static boolean requestNativeCamera(Context context) {
+        if (!supportsFeature(context, BridgeProtocol.FEATURE_CAMERA_ACTIVITY)) return false;
+        if (!writeRequest(context, BridgeProtocol.COMMAND_CAMERA_ACTIVITY)) return false;
+        ringDoorbell(context);
+        return true;
+    }
+
     static boolean requestTouchpadKey(Context context, String command) {
         if (!supportsTouchpadKeys(context)) return false;
         if (!writeRequest(context, command)) return false;
@@ -184,7 +191,8 @@ final class PrivilegedShortcutBridge {
     static boolean isCurrent(Context context) {
         return supportsNativeEntry(context) && supportsFunctionKeys(context) && supportsAiKey(context)
                 && supportsAssistantPin(context) && supportsAssistantScroll(context)
-                && supportsTouchpadKeys(context);
+                && supportsTouchpadKeys(context)
+                && supportsFeature(context, BridgeProtocol.FEATURE_CAMERA_ACTIVITY);
     }
 
     static String statusLabel(Context context) {
