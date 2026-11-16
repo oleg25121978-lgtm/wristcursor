@@ -29,6 +29,16 @@ final class SelfArmRecovery {
         rearmAsync(context, new long[]{1000L, 8000L, 30000L});
     }
 
+    private static String shortMessage(Throwable t) {
+        String m = t == null ? "" : t.getMessage();
+        if (m == null || m.trim().isEmpty()) {
+            return t == null ? "unknown" : t.getClass().getSimpleName();
+        }
+        m = m.trim();
+        int nl = m.indexOf('\n');
+        return nl >= 0 ? m.substring(0, nl) : m;
+    }
+
     private static void rearmAsync(Context context, long[] delays) {
         Context app = context.getApplicationContext();
         if (!isConfigured(app)) return;
@@ -80,7 +90,7 @@ final class SelfArmRecovery {
                     }
                 }
                 if (last != null) {
-                    SelfArmState.status = "SELF-ARM RECOVERY PENDING";
+                    SelfArmState.status = "RECOVERY FAILED: " + shortMessage(last);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
