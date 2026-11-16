@@ -275,6 +275,12 @@ public class BleGattService extends Service {
                         setAction("HI ROKID FALLBACK");
                     }
                     break;
+                case "APP_VISION_AI":
+                    Intent visionAi = new Intent("com.rokid.visualaidemo.ACTION_START");
+                    visionAi.setPackage("com.rokid.os.sprite.launcher");
+                    sendBroadcast(visionAi);
+                    setAction("VISION AI");
+                    break;
                 case "APP_TRANSLATE":
                     launchStock("com.rokid.os.sprite.launcher.page.translate.TranslatePageActivity", "TRANSLATE");
                     break;
