@@ -226,7 +226,9 @@ public class BleGattService extends Service {
                     adjustBrightness(-1);
                     break;
                 case "APP_CAMERA":
-                    launchStock("com.rokid.os.sprite.launcher.page.camera.CameraPageActivity", "CAMERA");
+                    setAction(PrivilegedShortcutBridge.requestNativeCamera(this)
+                            ? "CAMERA: NATIVE BRIDGE"
+                            : "CAMERA: BRIDGE NOT ARMED");
                     break;
                 case "APP_CHAT":
                     if (!nativeMedia.openAiAssist()) {
