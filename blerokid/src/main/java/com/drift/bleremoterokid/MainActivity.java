@@ -168,7 +168,7 @@ public class MainActivity extends Activity {
         boolean bridgeAlive = WatchdogFiles.isBridgeAlive(this);
         if (bridgeAlive) {
             watchdogText.setText("BRIDGE: ARMED");
-        } else if (a11y && "READY".equals(BleGattService.clientState)) {
+        } else if (a11y && BleGattService.clientState != null && BleGattService.clientState.startsWith("CONNECTED")) {
             watchdogText.setText("BRIDGE: OPTIONAL OFF • CONTROL OK");
         } else if (a11y) {
             watchdogText.setText("BRIDGE: OPTIONAL OFF • A11Y OK");
