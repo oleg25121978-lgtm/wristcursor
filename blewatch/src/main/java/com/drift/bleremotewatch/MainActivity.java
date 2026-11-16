@@ -57,6 +57,12 @@ public class MainActivity extends Activity {
     private LinearLayout systemPage;
     private LinearLayout appsPage;
     private int seenDevices = 0;
+    private boolean scanning = false;
+    private final Runnable autoReconnect = () -> {
+        if (commandCharacteristic == null && !scanning && permissionsReady()) {
+            startScan();
+        }
+    };
     private int touchTapCount = 0;
     private final Runnable touchTapCommit = () -> {
         int count = touchTapCount;
@@ -105,7 +111,12 @@ public class MainActivity extends Activity {
         }
 
         @Override public void onScanFailed(int errorCode) {
-            runOnUiThread(() -> scanText.setText("SCAN: FAILED " + errorCode));
+            scanning = false;
+            runOnUiThread(() -> {
+                scanText.setText("SCAN: FAILED " + errorCode + " • RETRY");
+                handler.removeCallbacks(autoReconnect);
+                handler.postDelayed(autoReconnect, 1200);
+            });
         }
     };
 
@@ -121,8 +132,10 @@ public class MainActivity extends Activity {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 commandCharacteristic = null;
                 runOnUiThread(() -> {
-                    linkText.setText("GATT: DISCONNECTED (" + status + ")");
+                    linkText.setText("GATT: DISCONNECTED (" + status + ") • AUTO");
                     enableCommands(false);
+                    handler.removeCallbacks(autoReconnect);
+                    handler.postDelayed(autoReconnect, 700);
                 });
             }
         }
@@ -150,7 +163,15 @@ public class MainActivity extends Activity {
         hardwareText.setText("BLE HW: " + (feature ? "YES" : "NO") + "   BT: " + (enabled ? "ON" : "OFF"));
 
         requestBlePermissionsIfNeeded();
-        if (permissionsReady()) handler.postDelayed(this::startScan, 350);
+        if (permissionsReady()) handler.postDelayed(autoReconnect, 150);
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (adapter != null && permissionsReady() && commandCharacteristic == null) {
+            handler.removeCallbacks(autoReconnect);
+            handler.postDelayed(autoReconnect, 150);
+        }
     }
 
     private void buildUi() {
@@ -363,7 +384,10 @@ public class MainActivity extends Activity {
             boolean ok = true;
             for (int result : grantResults) ok &= result == PackageManager.PERMISSION_GRANTED;
             scanText.setText(ok ? "PERMISSIONS: OK" : "PERMISSIONS: DENIED");
-            if (ok) handler.postDelayed(this::startScan, 250);
+            if (ok) {
+                handler.removeCallbacks(autoReconnect);
+                handler.postDelayed(autoReconnect, 150);
+            }
         }
     }
 
@@ -376,6 +400,7 @@ public class MainActivity extends Activity {
     }
 
     private void startScan() {
+        if (commandCharacteristic != null || scanning) return;
         if (!permissionsReady()) {
             requestBlePermissionsIfNeeded();
             scanText.setText("SCAN: NEED PERMISSION");
@@ -393,7 +418,8 @@ public class MainActivity extends Activity {
         }
 
         closeGatt();
-        scanText.setText("SCAN: RUNNING");
+        scanning = true;
+        scanText.setText("SCAN: AUTO CONNECT");
         linkText.setText("GATT: WAITING");
 
         seenDevices = 0;
@@ -406,9 +432,11 @@ public class MainActivity extends Activity {
             handler.postDelayed(() -> {
                 if (commandCharacteristic == null) {
                     stopScan();
-                    scanText.setText("SCAN: " + seenDevices + " BLE devices, ROKID SERVICE NOT FOUND");
+                    scanText.setText("SCAN: " + seenDevices + " devices • AUTO RETRY");
+                    handler.removeCallbacks(autoReconnect);
+                    handler.postDelayed(autoReconnect, 1200);
                 }
-            }, 15000);
+            }, 8000);
         } catch (SecurityException e) {
             scanText.setText("SCAN: SECURITY ERROR");
         } catch (Throwable t) {
@@ -417,7 +445,7 @@ public class MainActivity extends Activity {
     }
 
     private void stopScan() {
-        handler.removeCallbacksAndMessages(null);
+        scanning = false;
         if (scanner != null) {
             try { scanner.stopScan(scanCallback); } catch (Throwable ignored) {}
         }
@@ -486,6 +514,8 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        handler.removeCallbacks(autoReconnect);
+        handler.removeCallbacks(touchTapCommit);
         stopScan();
         closeGatt();
         super.onDestroy();
