@@ -17,6 +17,7 @@ final class BridgeProtocol {
     static final String FEATURE_ASSISTANT_PIN = "assistant_pin";
     static final String FEATURE_ASSISTANT_SCROLL = "assistant_scroll";
     static final String FEATURE_TOUCHPAD_KEYS = "touchpad_keys";
+    static final String FEATURE_CAMERA_ACTIVITY = "camera_activity";
 
     static final String COMMAND_TP_UP = "tp_up";
     static final String COMMAND_TP_DOWN = "tp_down";
@@ -31,6 +32,7 @@ final class BridgeProtocol {
     static final String COMMAND_AI_KEY = "ai_key";
     static final String COMMAND_WIFI_ENABLE = "wifi_enable";
     static final String COMMAND_WIFI_DISABLE = "wifi_disable";
+    static final String COMMAND_CAMERA_ACTIVITY = "camera_activity";
 
     private BridgeProtocol() {}
 }
