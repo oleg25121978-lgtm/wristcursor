@@ -2,7 +2,7 @@ name: Build BLE Remote R08/R10 APKs
 
 on:
   push:
-    branches: [ble-remote-test, ble-remote-r10, ble-remote-r11, ble-remote-r12]
+    branches: [ble-remote-test, ble-remote-r10, ble-remote-r11, ble-remote-r12, ble-remote-r13-no-adb]
   workflow_dispatch:
 
 jobs:
