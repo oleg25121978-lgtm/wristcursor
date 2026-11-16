@@ -217,14 +217,14 @@ public class BleGattService extends Service {
             switch (command) {
                 case "PHOTO":
                     if (!nativeMedia.takePhoto()) {
-                        setAction(PrivilegedShortcutBridge.requestFunctionKey(this, false)
-                                ? "PHOTO: CAMERA KEY" : "PHOTO: NATIVE/BRIDGE NOT READY");
+                        setAction("PHOTO: WAITING FOR NATIVE");
+                        retryNativeCommand("PHOTO", 0);
                     }
                     break;
                 case "VIDEO":
                     if (!nativeMedia.toggleVideo()) {
-                        setAction(PrivilegedShortcutBridge.requestFunctionKey(this, true)
-                                ? "VIDEO: CAMERA LONG KEY" : "VIDEO: NATIVE/BRIDGE NOT READY");
+                        setAction("VIDEO: WAITING FOR NATIVE");
+                        retryNativeCommand("VIDEO", 0);
                     }
                     break;
                 case "VOICE":
@@ -236,11 +236,8 @@ public class BleGattService extends Service {
                     break;
                 case "HI_ROKID":
                     if (!nativeMedia.openAiAssist()) {
-                        Intent assistant = new Intent("com.rokid.os.master.assist.server.cmd");
-                        assistant.putExtra("cmd_type", "mobile_assistant");
-                        assistant.putExtra("open", "true");
-                        sendBroadcast(assistant);
-                        setAction("HI ROKID: FALLBACK");
+                        setAction("HI ROKID: WAITING FOR NATIVE");
+                        retryNativeCommand("HI_ROKID", 0);
                     }
                     break;
                 case "NEXUS":
@@ -350,6 +347,28 @@ public class BleGattService extends Service {
         } catch (Throwable t) {
             setAction(command + " ERROR " + t.getClass().getSimpleName());
         }
+    }
+
+    private void retryNativeCommand(String command, int attempt) {
+        if (attempt >= 12) {
+            setAction(command + ": NATIVE NOT READY");
+            return;
+        }
+        handler.postDelayed(() -> {
+            boolean ok = false;
+            switch (command) {
+                case "PHOTO":
+                    ok = nativeMedia != null && nativeMedia.takePhoto();
+                    break;
+                case "VIDEO":
+                    ok = nativeMedia != null && nativeMedia.toggleVideo();
+                    break;
+                case "HI_ROKID":
+                    ok = nativeMedia != null && nativeMedia.openAiAssist();
+                    break;
+            }
+            if (!ok) retryNativeCommand(command, attempt + 1);
+        }, attempt < 4 ? 350 : 700);
     }
 
     private void fallbackNav(String command) {
