@@ -235,8 +235,13 @@ public class BleGattService extends Service {
                     setAction("MENU");
                     break;
                 case "HI_ROKID":
-                    setAction(PrivilegedShortcutBridge.requestHiRokidShortcut(this)
-                            ? "HI ROKID: EXACT SHORTCUT" : "HI ROKID: BRIDGE NOT ARMED");
+                    if (!nativeMedia.openAiAssist()) {
+                        Intent assistant = new Intent("com.rokid.os.master.assist.server.cmd");
+                        assistant.putExtra("cmd_type", "mobile_assistant");
+                        assistant.putExtra("open", "true");
+                        sendBroadcast(assistant);
+                        setAction("HI ROKID: FALLBACK");
+                    }
                     break;
                 case "NEXUS":
                     Intent nexus = new Intent("com.anezium.rokidbus.glasses.action.OPEN_LAUNCHER");
@@ -260,9 +265,7 @@ public class BleGattService extends Service {
                     adjustBrightness(-1);
                     break;
                 case "APP_CAMERA":
-                    setAction(PrivilegedShortcutBridge.requestNativeCamera(this)
-                            ? "CAMERA: NATIVE BRIDGE"
-                            : "CAMERA: BRIDGE NOT ARMED");
+                    launchStock("com.rokid.os.sprite.launcher.page.camera.CameraPageActivity", "CAMERA");
                     break;
                 case "APP_CHAT":
                     if (!nativeMedia.openAiAssist()) {
