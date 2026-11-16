@@ -63,6 +63,10 @@ public class MainActivity extends Activity {
         else send("TOUCH3");
     };
 
+    private final Runnable autoConnectRunnable = () -> {
+        if (commandCharacteristic == null) startScan();
+    };
+
     private final ScanCallback scanCallback = new ScanCallback() {
         @Override public void onScanResult(int callbackType, ScanResult result) {
             seenDevices++;
@@ -118,8 +122,10 @@ public class MainActivity extends Activity {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 commandCharacteristic = null;
                 runOnUiThread(() -> {
-                    linkText.setText("GATT: DISCONNECTED (" + status + ")");
+                    linkText.setText("GATT: DISCONNECTED (" + status + ") • RECONNECTING");
                     enableCommands(false);
+                    handler.removeCallbacks(autoConnectRunnable);
+                    handler.postDelayed(autoConnectRunnable, 900);
                 });
             }
         }
@@ -147,6 +153,7 @@ public class MainActivity extends Activity {
         hardwareText.setText("BLE HW: " + (feature ? "YES" : "NO") + "   BT: " + (enabled ? "ON" : "OFF"));
 
         requestBlePermissionsIfNeeded();
+        handler.postDelayed(autoConnectRunnable, 350);
     }
 
     private void buildUi() {
@@ -429,6 +436,7 @@ public class MainActivity extends Activity {
             boolean ok = true;
             for (int result : grantResults) ok &= result == PackageManager.PERMISSION_GRANTED;
             scanText.setText(ok ? "PERMISSIONS: OK" : "PERMISSIONS: DENIED");
+            if (ok) handler.postDelayed(autoConnectRunnable, 250);
         }
     }
 
@@ -482,7 +490,6 @@ public class MainActivity extends Activity {
     }
 
     private void stopScan() {
-        handler.removeCallbacksAndMessages(null);
         if (scanner != null) {
             try { scanner.stopScan(scanCallback); } catch (Throwable ignored) {}
         }
@@ -551,6 +558,8 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        handler.removeCallbacks(autoConnectRunnable);
+        handler.removeCallbacks(touchTapCommit);
         stopScan();
         closeGatt();
         super.onDestroy();
