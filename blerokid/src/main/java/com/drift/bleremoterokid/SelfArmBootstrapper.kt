@@ -48,6 +48,13 @@ internal class SelfArmBootstrapper(context: Context) {
         return installViaPort(LOOPBACK_PORT)
     }
 
+    // Recovery-only entry point. Initial self-arm never calls this.
+    fun rearmPort(port: Int): String {
+        require(port in 1024..65535) { "rearm port invalid" }
+        configureCert()
+        return installViaPort(port)
+    }
+
     private fun pair(port: Int, code: String) {
         val done = CountDownLatch(1)
         val failure = AtomicReference<Throwable?>()
