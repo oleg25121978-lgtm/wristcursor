@@ -43,8 +43,7 @@ public class BleGattService extends Service {
     private BluetoothAdapter adapter;
     private BluetoothGattServer gattServer;
     private BluetoothLeAdvertiser advertiser;
-    private RokidMediaController mediaController;
-    private RokidAudioRecorder audioRecorder;
+    private NativeRecordingBridge nativeMedia;
 
     private final BluetoothGattServerCallback serverCallback = new BluetoothGattServerCallback() {
         @Override public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
@@ -101,15 +100,11 @@ public class BleGattService extends Service {
         manager = getSystemService(BluetoothManager.class);
         adapter = manager == null ? null : manager.getAdapter();
 
-        mediaController = new RokidMediaController(this, text -> {
+        nativeMedia = new NativeRecordingBridge(this, new android.os.Handler(getMainLooper()), text -> {
             lastAction = text;
             updateNotification();
         });
-        audioRecorder = new RokidAudioRecorder(this, text -> {
-            lastAction = text;
-            updateNotification();
-        });
-        mediaController.init();
+        nativeMedia.start();
         startBle();
     }
 
@@ -187,13 +182,13 @@ public class BleGattService extends Service {
         try {
             switch (command) {
                 case "PHOTO":
-                    mediaController.takePhoto();
+                    nativeMedia.takePhoto();
                     break;
                 case "VIDEO":
-                    mediaController.toggleVideo();
+                    nativeMedia.toggleVideo();
                     break;
                 case "VOICE":
-                    audioRecorder.toggle();
+                    nativeMedia.toggleAudio();
                     break;
                 case "MENU":
                     launchHome();
@@ -224,11 +219,13 @@ public class BleGattService extends Service {
                     launchStock("com.rokid.os.sprite.launcher.page.camera.CameraPageActivity", "CAMERA");
                     break;
                 case "APP_CHAT":
-                    Intent assistant = new Intent("com.rokid.os.master.assist.server.cmd");
-                    assistant.putExtra("cmd_type", "mobile_assistant");
-                    assistant.putExtra("open", "true");
-                    sendBroadcast(assistant);
-                    setAction("HI ROKID");
+                    if (!nativeMedia.openAiAssist()) {
+                        Intent assistant = new Intent("com.rokid.os.master.assist.server.cmd");
+                        assistant.putExtra("cmd_type", "mobile_assistant");
+                        assistant.putExtra("open", "true");
+                        sendBroadcast(assistant);
+                        setAction("HI ROKID FALLBACK");
+                    }
                     break;
                 case "APP_TRANSLATE":
                     launchStock("com.rokid.os.sprite.launcher.page.translate.TranslatePageActivity", "TRANSLATE");
@@ -403,8 +400,7 @@ public class BleGattService extends Service {
 
     @Override public void onDestroy() {
         stopBle();
-        if (mediaController != null) mediaController.release();
-        if (audioRecorder != null) audioRecorder.release();
+        if (nativeMedia != null) nativeMedia.stop();
         bleState = "STOPPED";
         clientState = "NONE";
         super.onDestroy();
