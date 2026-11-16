@@ -13,7 +13,7 @@ ENTRY_RESPONSE="$BASE/entry_response"
 ENTRY_VERSION=1
 FEATURES="$BASE/features"
 # Space-separated capabilities the app checks before routing a request to this helper.
-FEATURE_LIST="function_key ai_key assistant_pin assistant_scroll"
+FEATURE_LIST="function_key ai_key assistant_pin assistant_scroll touchpad_keys"
 PIDFILE="${BLE_REMOTE_PIDFILE:-/data/local/tmp/rokid-ble-shortcut-bridge.pid}"
 LOGFILE="${BLE_REMOTE_LOGFILE:-/data/local/tmp/rokid-ble-shortcut-bridge.log}"
 INPUT_DEVICE="${BLE_REMOTE_INPUT_DEVICE:-/dev/input/event1}"
@@ -33,6 +33,8 @@ FUNCTION_LONG_HOLD_SECONDS="${BLE_REMOTE_FUNCTION_LONG_HOLD_SECONDS:-0.8}"
 # countdown when the temples are folded), so injected presses are always spaced out.
 # The assistserver also drops camera and AI actions within 1 s of each other.
 FUNCTION_MIN_GAP_MS="${BLE_REMOTE_FUNCTION_MIN_GAP_MS:-1000}"
+TOUCHPAD_INPUT_NAME="${BLE_REMOTE_TOUCHPAD_INPUT_NAME:-ROKID,PSOC-TP-R}"
+TOUCHPAD_HOLD_SECONDS="${BLE_REMOTE_TOUCHPAD_HOLD_SECONDS:-0.05}"
 POLL_SECONDS="${BLE_REMOTE_POLL_SECONDS:-0.2}"
 IDLE_RECHECK_SECONDS="${BLE_REMOTE_IDLE_RECHECK_SECONDS:-5}"
 WIFI_DISABLE_DELAY_SECONDS="${BLE_REMOTE_WIFI_DISABLE_DELAY_SECONDS:-12}"
@@ -186,6 +188,12 @@ press_ai_key() {
     function_last_ms="$(uptime_ms)"
 }
 
+press_touchpad_key() {
+    code="$1"
+    device="$(input_device_named "$TOUCHPAD_INPUT_NAME")" || return 1
+    hold_key "$device" "$code" "$TOUCHPAD_HOLD_SECONDS"
+}
+
 set_wifi_enabled() {
     if [ "$1" = "1" ]; then
         for attempt in 1 2 3; do
@@ -289,6 +297,23 @@ handle_request() {
             else
                 echo "failed ai_key $request $now" > "$RESPONSE"
                 log_msg "ai_key failed request=$request"
+            fi
+            ;;
+        tp_up|tp_down|tp_left|tp_right|tp_enter|tp_back)
+            case "$command" in
+                tp_up) code=103 ;;
+                tp_left) code=105 ;;
+                tp_right) code=106 ;;
+                tp_down) code=108 ;;
+                tp_enter) code=28 ;;
+                tp_back) code=158 ;;
+            esac
+            if press_touchpad_key "$code"; then
+                echo "ok $command $request $now" > "$RESPONSE"
+                log_msg "$command ok code=$code request=$request"
+            else
+                echo "failed $command $request $now" > "$RESPONSE"
+                log_msg "$command failed code=$code request=$request"
             fi
             ;;
         *)
