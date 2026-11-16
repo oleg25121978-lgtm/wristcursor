@@ -1,6 +1,13 @@
 package com.drift.bleremoterokid;
 
 final class BridgeProtocol {
+    static final String PREFS_BRIDGE = "self_arm";
+    static final String PREF_BRIDGE_ARMED = "armed";
+    static final int DEFAULT_ADB_PORT = 5555;
+    static final String SELF_ARM_ADB_KEY_FILE = "adbkey.pem";
+    static final String REMOTE_SCRIPT = "/data/local/tmp/rokid-ble-shortcut-bridge.sh";
+    static final String REMOTE_WATCHDOG_SCRIPT = "/data/local/tmp/rokid-ble-a11y-watchdog.sh";
+
     static final String BRIDGE_DIR_NAME = "shortcut_bridge";
     static final String REQUEST_FILE = "request";
     static final String RESPONSE_FILE = "response";
