@@ -110,23 +110,31 @@ final class SelfArmAutomator {
         String joined = String.join("\n", texts);
         String lower = joined.toLowerCase(Locale.ROOT);
 
-        String code = firstSixDigit(joined);
-        int endpointPort = firstEndpointPort(joined);
+        String code = pairingCode(root, joined);
+        int endpointPort = SelfArmWirelessAdbController.INSTANCE.readWirelessPort();
+        if (endpointPort <= 0) endpointPort = firstEndpointPort(joined);
 
         boolean pairingDialog = code != null && (
+                hasViewId(root, "com.android.settings:id/pairing_code") ||
                 lower.contains("pairing code") ||
+                lower.contains("wi-fi pairing code") ||
+                lower.contains("wifi pairing code") ||
                 lower.contains("pair with device") ||
                 lower.contains("код подключения") ||
                 lower.contains("код сопряжения") ||
+                lower.contains("код подключения wi-fi") ||
+                lower.contains("код подключения wifi") ||
                 lower.contains("ip address") ||
                 lower.contains("адрес ip"));
 
         if (pairingDialog) {
             int pairPort = pairingEndpointPort(root, connectPort);
             if (connectPort <= 0) {
-                SelfArmState.status = "WAITING FOR CONNECT PORT";
-                performGlobalBack();
-                schedule(700);
+                connectPort = SelfArmWirelessAdbController.INSTANCE.readWirelessPort();
+            }
+            if (connectPort <= 0) {
+                SelfArmState.status = "WAITING FOR WIRELESS ADB PORT";
+                schedule(600);
                 return;
             }
             if (pairPort <= 0) {
@@ -152,6 +160,12 @@ final class SelfArmAutomator {
                     schedule(1200);
                     return;
                 }
+            }
+
+            if (connectPort <= 0) {
+                SelfArmState.status = "WAITING FOR WIRELESS ADB PORT";
+                schedule(700);
+                return;
             }
 
             AccessibilityNodeInfo pair = findByText(root,
@@ -343,19 +357,62 @@ final class SelfArmAutomator {
                 for (AccessibilityNodeInfo node : nodes) {
                     int p = firstEndpointPort(nodeText(node));
                     if (p > 0 && p != knownConnectPort) return p;
+                    p = firstStandalonePort(nodeText(node), null, knownConnectPort);
+                    if (p > 0) return p;
                 }
             }
         } catch (Throwable ignored) {}
+
         List<String> texts = new ArrayList<>();
         collectTexts(root, texts);
-        Matcher m = ENDPOINT.matcher(String.join("\n", texts));
+        String all = String.join("\n", texts);
+
+        Matcher m = ENDPOINT.matcher(all);
         while (m.find()) {
             try {
                 int p = Integer.parseInt(m.group(1));
                 if (p >= 1024 && p <= 65535 && p != knownConnectPort) return p;
             } catch (Throwable ignored) {}
         }
+
+        String code = pairingCode(root, all);
+        return firstStandalonePort(all, code, knownConnectPort);
+    }
+
+    private int firstStandalonePort(String text, String pairingCode, int knownConnectPort) {
+        Matcher m = Pattern.compile("(?<!\\d)(\\d{4,5})(?!\\d)").matcher(text == null ? "" : text);
+        while (m.find()) {
+            try {
+                String digits = m.group(1);
+                if (pairingCode != null && pairingCode.equals(digits)) continue;
+                int p = Integer.parseInt(digits);
+                if (p >= 1024 && p <= 65535 && p != knownConnectPort) return p;
+            } catch (Throwable ignored) {}
+        }
         return 0;
+    }
+
+    private String pairingCode(AccessibilityNodeInfo root, String fallbackText) {
+        try {
+            List<AccessibilityNodeInfo> nodes =
+                    root.findAccessibilityNodeInfosByViewId("com.android.settings:id/pairing_code");
+            if (nodes != null) {
+                for (AccessibilityNodeInfo node : nodes) {
+                    String code = firstSixDigit(nodeText(node));
+                    if (code != null) return code;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return firstSixDigit(fallbackText);
+    }
+
+    private boolean hasViewId(AccessibilityNodeInfo root, String id) {
+        try {
+            List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByViewId(id);
+            return nodes != null && !nodes.isEmpty();
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     private int firstEndpointPort(String text) {
