@@ -2,6 +2,8 @@ package com.drift.bleremoterokid;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
+import android.content.Context;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.SystemClock;
@@ -48,8 +50,13 @@ final class SelfArmAutomator {
         noProgress = 0;
         deadline = SystemClock.uptimeMillis() + 120_000L;
         SelfArmState.running = true;
-        SelfArmState.status = "OPENING DEVELOPER OPTIONS";
-        openDeveloperOptions();
+        if (!wifiEnabled()) {
+            SelfArmState.status = "ENABLING WI-FI";
+            openWifiSettings();
+        } else {
+            SelfArmState.status = "OPENING DEVELOPER OPTIONS";
+            openDeveloperOptions();
+        }
         schedule(900);
     }
 
@@ -76,6 +83,28 @@ final class SelfArmAutomator {
             return;
         }
 
+        if (!wifiEnabled()) {
+            AccessibilityNodeInfo wifiToggle = findFirst(root, n ->
+                    n.isCheckable() &&
+                    (nodeText(n).toLowerCase(Locale.ROOT).contains("wi-fi") ||
+                     nodeText(n).toLowerCase(Locale.ROOT).contains("wifi") ||
+                     className(n).toLowerCase(Locale.ROOT).contains("switch")));
+            if (wifiToggle != null && !wifiToggle.isChecked() && clickNode(wifiToggle)) {
+                SelfArmState.status = "ENABLING WI-FI";
+                schedule(1000);
+                return;
+            }
+            SelfArmState.status = "WAITING FOR WI-FI";
+            schedule(600);
+            return;
+        } else if (SelfArmState.status.startsWith("ENABLING WI-FI") ||
+                   SelfArmState.status.startsWith("WAITING FOR WI-FI")) {
+            SelfArmState.status = "OPENING DEVELOPER OPTIONS";
+            openDeveloperOptions();
+            schedule(900);
+            return;
+        }
+
         List<String> texts = new ArrayList<>();
         collectTexts(root, texts);
         String joined = String.join("\n", texts);
@@ -93,7 +122,7 @@ final class SelfArmAutomator {
                 lower.contains("адрес ip"));
 
         if (pairingDialog) {
-            int pairPort = endpointPort;
+            int pairPort = pairingEndpointPort(root, connectPort);
             if (connectPort <= 0) {
                 SelfArmState.status = "WAITING FOR CONNECT PORT";
                 performGlobalBack();
@@ -239,6 +268,28 @@ final class SelfArmAutomator {
         stop();
     }
 
+    private boolean wifiEnabled() {
+        try {
+            WifiManager wifi = (WifiManager) service.getApplicationContext()
+                    .getSystemService(Context.WIFI_SERVICE);
+            return wifi != null && wifi.isWifiEnabled();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private void openWifiSettings() {
+        try {
+            service.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (Throwable ignored) {
+            try {
+                service.startActivity(new Intent(Settings.ACTION_SETTINGS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (Throwable ignored2) {}
+        }
+    }
+
     private void openDeveloperOptions() {
         try {
             Intent i = new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
@@ -282,6 +333,29 @@ final class SelfArmAutomator {
                 lower.contains("режим разработчика") ||
                 lower.contains("параметры разработчика") ||
                 lower.contains("отладка");
+    }
+
+    private int pairingEndpointPort(AccessibilityNodeInfo root, int knownConnectPort) {
+        try {
+            List<AccessibilityNodeInfo> nodes =
+                    root.findAccessibilityNodeInfosByViewId("com.android.settings:id/ip_addr");
+            if (nodes != null) {
+                for (AccessibilityNodeInfo node : nodes) {
+                    int p = firstEndpointPort(nodeText(node));
+                    if (p > 0 && p != knownConnectPort) return p;
+                }
+            }
+        } catch (Throwable ignored) {}
+        List<String> texts = new ArrayList<>();
+        collectTexts(root, texts);
+        Matcher m = ENDPOINT.matcher(String.join("\n", texts));
+        while (m.find()) {
+            try {
+                int p = Integer.parseInt(m.group(1));
+                if (p >= 1024 && p <= 65535 && p != knownConnectPort) return p;
+            } catch (Throwable ignored) {}
+        }
+        return 0;
     }
 
     private int firstEndpointPort(String text) {
