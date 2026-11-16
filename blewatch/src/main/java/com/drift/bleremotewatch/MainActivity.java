@@ -52,10 +52,7 @@ public class MainActivity extends Activity {
     private Button scanButton;
     private Button[] commandButtons;
     private final List<Button> allCommandButtons = new ArrayList<>();
-    private LinearLayout mediaPage;
-    private LinearLayout navPage;
-    private LinearLayout systemPage;
-    private LinearLayout appsPage;
+    private LinearLayout screenHost;
     private int seenDevices = 0;
     private int touchTapCount = 0;
     private final Runnable touchTapCommit = () -> {
@@ -156,135 +153,202 @@ public class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(8), dp(8), dp(8), dp(16));
+        root.setPadding(dp(10), dp(8), dp(10), dp(18));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.setBackgroundColor(Color.BLACK);
         scroll.addView(root, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView title = label("ROKID BLE", 19, 0xFF8BF1D8);
+        TextView title = label("ROKID REMOTE · R09", 18, Color.WHITE);
         title.setGravity(Gravity.CENTER);
         root.addView(title, full());
 
-        hardwareText = label("BLE HW: CHECKING", 10, Color.WHITE);
-        scanText = label("SCAN: IDLE", 10, 0xFFA9B0C0);
-        linkText = label("GATT: IDLE", 10, 0xFFA9B0C0);
-        lastText = label("LAST: —", 10, 0xFFA9B0C0);
+        hardwareText = label("BLE HW: CHECKING", 9, 0xFF98A2B3);
+        scanText = label("SCAN: IDLE", 9, 0xFF98A2B3);
+        linkText = label("GATT: IDLE", 10, 0xFF41D17D);
+        lastText = label("LAST: —", 9, 0xFF98A2B3);
         root.addView(hardwareText, full());
         root.addView(scanText, full());
         root.addView(linkText, full());
         root.addView(lastText, full());
 
-        scanButton = button("SCAN / CONNECT");
+        scanButton = button("ПОДКЛЮЧИТЬ ОЧКИ");
         scanButton.setOnClickListener(v -> startScan());
+        scanButton.setBackgroundColor(0xFF0A66FF);
         root.addView(scanButton, full());
 
-        LinearLayout tabs1 = new LinearLayout(this);
-        tabs1.setOrientation(LinearLayout.HORIZONTAL);
-        Button mediaTab = button("MEDIA");
-        Button navTab = button("NAV");
-        mediaTab.setOnClickListener(v -> showPage(0));
-        navTab.setOnClickListener(v -> showPage(1));
-        tabs1.addView(mediaTab, half());
-        tabs1.addView(navTab, half());
-        root.addView(tabs1, full());
-
-        LinearLayout tabs2 = new LinearLayout(this);
-        tabs2.setOrientation(LinearLayout.HORIZONTAL);
-        Button systemTab = button("SYSTEM");
-        Button appsTab = button("APPS");
-        systemTab.setOnClickListener(v -> showPage(2));
-        appsTab.setOnClickListener(v -> showPage(3));
-        tabs2.addView(systemTab, half());
-        tabs2.addView(appsTab, half());
-        root.addView(tabs2, full());
-
-        mediaPage = page();
-        navPage = page();
-        systemPage = page();
-        appsPage = page();
-        root.addView(mediaPage, full());
-        root.addView(navPage, full());
-        root.addView(systemPage, full());
-        root.addView(appsPage, full());
-
-        mediaPage.addView(commandButton("PHOTO", "PHOTO"), full());
-        mediaPage.addView(commandButton("VIDEO START / STOP", "VIDEO"), full());
-        mediaPage.addView(commandButton("RECORDER", "VOICE"), full());
-        mediaPage.addView(commandButton("KEY 1", "KEY1"), full());
-        mediaPage.addView(commandButton("KEY 2", "KEY2"), full());
-        mediaPage.addView(commandButton("KEY 3", "KEY3"), full());
-        mediaPage.addView(commandButton("KEY 4", "KEY4"), full());
-
-        navPage.addView(commandButton("↑", "UP"), full());
-        LinearLayout navRow = new LinearLayout(this);
-        navRow.setOrientation(LinearLayout.HORIZONTAL);
-        navRow.addView(commandButton("←", "LEFT"), third());
-        navRow.addView(commandButton("OK", "OK"), third());
-        navRow.addView(commandButton("→", "RIGHT"), third());
-        navPage.addView(navRow, full());
-        navPage.addView(commandButton("↓", "DOWN"), full());
-
-        LinearLayout navRow2 = new LinearLayout(this);
-        navRow2.setOrientation(LinearLayout.HORIZONTAL);
-        navRow2.addView(commandButton("BACK", "BACK"), third());
-        navRow2.addView(commandButton("HOME", "HOME"), third());
-        navRow2.addView(commandButton("NEXUS", "NEXUS"), third());
-        navPage.addView(navRow2, full());
-        navPage.addView(commandButton("MENU", "MENU"), full());
-
-        Button touch = button("TOUCH  • / •• / •••");
-        touch.setOnClickListener(v -> registerTouchTap());
-        allCommandButtons.add(touch);
-        navPage.addView(touch, full());
-
-        TextView volumeTitle = label("VOLUME", 12, 0xFF8BF1D8);
-        systemPage.addView(volumeTitle, full());
-        LinearLayout volRow = new LinearLayout(this);
-        volRow.setOrientation(LinearLayout.HORIZONTAL);
-        volRow.addView(commandButton("−", "VOL_DOWN"), third());
-        volRow.addView(commandButton("MUTE", "MUTE"), third());
-        volRow.addView(commandButton("+", "VOL_UP"), third());
-        systemPage.addView(volRow, full());
-
-        TextView brightnessTitle = label("BRIGHTNESS", 12, 0xFF8BF1D8);
-        systemPage.addView(brightnessTitle, full());
-        LinearLayout briRow = new LinearLayout(this);
-        briRow.setOrientation(LinearLayout.HORIZONTAL);
-        briRow.addView(commandButton("−", "BRI_DOWN"), half());
-        briRow.addView(commandButton("+", "BRI_UP"), half());
-        systemPage.addView(briRow, full());
-
-        appsPage.addView(commandButton("CAMERA", "APP_CAMERA"), full());
-        appsPage.addView(commandButton("ROKID AI", "APP_CHAT"), full());
-        appsPage.addView(commandButton("HI ROKID", "HI_ROKID"), full());
-        appsPage.addView(commandButton("TRANSLATE", "APP_TRANSLATE"), full());
-        appsPage.addView(commandButton("TELEPROMPTER", "APP_PROMPTER"), full());
-        appsPage.addView(commandButton("MUSIC", "APP_MUSIC"), full());
-        appsPage.addView(commandButton("NAVIGATION", "APP_NAV"), full());
-        appsPage.addView(commandButton("GALLERY", "APP_GALLERY"), full());
-        appsPage.addView(commandButton("AUDIO", "APP_AUDIO"), full());
-        appsPage.addView(commandButton("SETTINGS", "APP_SETTINGS"), full());
-        appsPage.addView(commandButton("BLUETOOTH", "APP_BT"), full());
+        screenHost = new LinearLayout(this);
+        screenHost.setOrientation(LinearLayout.VERTICAL);
+        root.addView(screenHost, full());
 
         commandButtons = allCommandButtons.toArray(new Button[0]);
         enableCommands(false);
-        showPage(0);
         setContentView(scroll);
+        showHomeScreen();
     }
 
-    private LinearLayout page() {
-        LinearLayout page = new LinearLayout(this);
-        page.setOrientation(LinearLayout.VERTICAL);
-        return page;
+    private void clearScreen(String title, Runnable back) {
+        screenHost.removeAllViews();
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        if (back != null) {
+            Button backButton = navButton("‹");
+            backButton.setTextSize(22);
+            backButton.setOnClickListener(v -> back.run());
+            header.addView(backButton, new LinearLayout.LayoutParams(dp(52), dp(48)));
+        }
+        TextView heading = label(title, 17, Color.WHITE);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        header.addView(heading, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        screenHost.addView(header, full());
     }
 
-    private void showPage(int page) {
-        if (mediaPage == null || navPage == null || systemPage == null || appsPage == null) return;
-        mediaPage.setVisibility(page == 0 ? View.VISIBLE : View.GONE);
-        navPage.setVisibility(page == 1 ? View.VISIBLE : View.GONE);
-        systemPage.setVisibility(page == 2 ? View.VISIBLE : View.GONE);
-        appsPage.setVisibility(page == 3 ? View.VISIBLE : View.GONE);
+    private void showHomeScreen() {
+        clearScreen("Rokid Glasses", null);
+
+        TextView state = label("Быстрый доступ", 11, 0xFF8BF1D8);
+        screenHost.addView(state, full());
+
+        LinearLayout quick = new LinearLayout(this);
+        quick.setOrientation(LinearLayout.HORIZONTAL);
+        quick.addView(commandButton("Hi Rokid", "HI_ROKID"), third());
+        quick.addView(commandButton("Домой", "HOME"), third());
+        quick.addView(commandButton("Камера", "APP_CAMERA"), third());
+        screenHost.addView(quick, full());
+
+        Button menu = navButton("МЕНЮ");
+        menu.setTextSize(16);
+        menu.setBackgroundColor(0xFF172033);
+        menu.setOnClickListener(v -> showMenuScreen());
+        screenHost.addView(menu, full());
+    }
+
+    private void showMenuScreen() {
+        clearScreen("Меню", this::showHomeScreen);
+        addSectionButton("Управление", this::showControlScreen);
+        addSectionButton("Камера", this::showCameraScreen);
+        addSectionButton("Медиа", this::showMediaScreen);
+        addSectionButton("Приложения", this::showAppsScreen);
+    }
+
+    private void showControlScreen() {
+        clearScreen("Управление", this::showMenuScreen);
+
+        LinearLayout row1 = new LinearLayout(this);
+        row1.setOrientation(LinearLayout.HORIZONTAL);
+        row1.addView(commandButton("Домой", "HOME"), third());
+        row1.addView(commandButton("Назад", "BACK"), third());
+        row1.addView(commandButton("Меню", "MENU"), third());
+        screenHost.addView(row1, full());
+
+        LinearLayout row2 = new LinearLayout(this);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        row2.addView(commandButton("Hi Rokid", "HI_ROKID"), half());
+        row2.addView(commandButton("Nexus", "NEXUS"), half());
+        screenHost.addView(row2, full());
+
+        TextView navTitle = label("Навигация по экрану", 11, 0xFF8BF1D8);
+        screenHost.addView(navTitle, full());
+        screenHost.addView(commandButton("↑", "UP"), full());
+
+        LinearLayout arrows = new LinearLayout(this);
+        arrows.setOrientation(LinearLayout.HORIZONTAL);
+        arrows.addView(commandButton("←", "LEFT"), third());
+        arrows.addView(commandButton("OK", "OK"), third());
+        arrows.addView(commandButton("→", "RIGHT"), third());
+        screenHost.addView(arrows, full());
+        screenHost.addView(commandButton("↓", "DOWN"), full());
+
+        Button touch = button("TOUCH  • / •• / •••");
+        touch.setOnClickListener(v -> registerTouchTap());
+        touch.setEnabled(commandCharacteristic != null);
+        allCommandButtons.add(touch);
+        screenHost.addView(touch, full());
+
+        TextView volumeTitle = label("Громкость", 11, 0xFF8BF1D8);
+        screenHost.addView(volumeTitle, full());
+        LinearLayout vol = new LinearLayout(this);
+        vol.setOrientation(LinearLayout.HORIZONTAL);
+        vol.addView(commandButton("−", "VOL_DOWN"), third());
+        vol.addView(commandButton("MUTE", "MUTE"), third());
+        vol.addView(commandButton("+", "VOL_UP"), third());
+        screenHost.addView(vol, full());
+
+        TextView brightnessTitle = label("Яркость", 11, 0xFF8BF1D8);
+        screenHost.addView(brightnessTitle, full());
+        LinearLayout bri = new LinearLayout(this);
+        bri.setOrientation(LinearLayout.HORIZONTAL);
+        bri.addView(commandButton("−", "BRI_DOWN"), half());
+        bri.addView(commandButton("+", "BRI_UP"), half());
+        screenHost.addView(bri, full());
+    }
+
+    private void showCameraScreen() {
+        clearScreen("Камера", this::showMenuScreen);
+
+        Button open = commandButton("ОТКРЫТЬ РОДНУЮ КАМЕРУ", "APP_CAMERA");
+        open.setBackgroundColor(0xFF0A66FF);
+        screenHost.addView(open, full());
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.addView(commandButton("Фото", "PHOTO"), half());
+        row.addView(commandButton("Видео START / STOP", "VIDEO"), half());
+        screenHost.addView(row, full());
+
+        screenHost.addView(commandButton("Аудиозапись", "VOICE"), full());
+    }
+
+    private void showMediaScreen() {
+        clearScreen("Медиа", this::showMenuScreen);
+        TextView note = label("Сохранены все команды R08", 11, 0xFF8BF1D8);
+        screenHost.addView(note, full());
+        screenHost.addView(commandButton("Фото", "PHOTO"), full());
+        screenHost.addView(commandButton("Видео START / STOP", "VIDEO"), full());
+        screenHost.addView(commandButton("Аудиозапись", "VOICE"), full());
+
+        LinearLayout keys1 = new LinearLayout(this);
+        keys1.setOrientation(LinearLayout.HORIZONTAL);
+        keys1.addView(commandButton("KEY 1", "KEY1"), half());
+        keys1.addView(commandButton("KEY 2", "KEY2"), half());
+        screenHost.addView(keys1, full());
+        LinearLayout keys2 = new LinearLayout(this);
+        keys2.setOrientation(LinearLayout.HORIZONTAL);
+        keys2.addView(commandButton("KEY 3", "KEY3"), half());
+        keys2.addView(commandButton("KEY 4", "KEY4"), half());
+        screenHost.addView(keys2, full());
+    }
+
+    private void showAppsScreen() {
+        clearScreen("Приложения", this::showMenuScreen);
+        screenHost.addView(commandButton("Камера Rokid", "APP_CAMERA"), full());
+        screenHost.addView(commandButton("Rokid AI", "APP_CHAT"), full());
+        screenHost.addView(commandButton("Hi Rokid", "HI_ROKID"), full());
+        screenHost.addView(commandButton("Переводчик", "APP_TRANSLATE"), full());
+        screenHost.addView(commandButton("Телесуфлёр", "APP_PROMPTER"), full());
+        screenHost.addView(commandButton("Музыка", "APP_MUSIC"), full());
+        screenHost.addView(commandButton("Навигация", "APP_NAV"), full());
+        screenHost.addView(commandButton("Галерея", "APP_GALLERY"), full());
+        screenHost.addView(commandButton("Аудио", "APP_AUDIO"), full());
+        screenHost.addView(commandButton("Настройки", "APP_SETTINGS"), full());
+        screenHost.addView(commandButton("Bluetooth", "APP_BT"), full());
+    }
+
+    private void addSectionButton(String title, Runnable action) {
+        Button b = navButton(title + "  ›");
+        b.setTextSize(15);
+        b.setGravity(Gravity.CENTER_VERTICAL);
+        b.setOnClickListener(v -> action.run());
+        screenHost.addView(b, full());
+    }
+
+    private Button navButton(String text) {
+        Button b = button(text);
+        b.setTextColor(Color.WHITE);
+        b.setBackgroundColor(0xFF172033);
+        return b;
     }
 
     private void registerTouchTap() {
@@ -301,6 +365,7 @@ public class MainActivity extends Activity {
     private Button commandButton(String caption, String command) {
         Button button = button(caption);
         button.setOnClickListener(v -> send(command));
+        button.setEnabled(commandCharacteristic != null);
         allCommandButtons.add(button);
         return button;
     }
@@ -310,7 +375,9 @@ public class MainActivity extends Activity {
         b.setText(text);
         b.setTextSize(13);
         b.setAllCaps(false);
-        b.setMinHeight(dp(44));
+        b.setTextColor(Color.WHITE);
+        b.setBackgroundColor(0xFF172033);
+        b.setMinHeight(dp(46));
         return b;
     }
 
