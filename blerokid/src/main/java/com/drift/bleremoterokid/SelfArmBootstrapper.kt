@@ -98,11 +98,17 @@ internal class SelfArmBootstrapper(context: Context) {
                 appendLine("printf '%s' '$watchdog' | base64 -d > \"\$WATCHDOG\"")
                 appendLine("chmod 755 \"\$BRIDGE\" \"\$WATCHDOG\"")
                 appendLine("pm grant \$PKG android.permission.WRITE_SECURE_SETTINGS >/dev/null 2>&1 || true")
+                appendLine("settings put global adb_wifi_enabled 1 >/dev/null 2>&1 || true")
                 appendLine("settings put global adb_allowed_connection_time 0 >/dev/null 2>&1 || true")
                 appendLine("setprop persist.adb.tcp.port 5555 >/dev/null 2>&1 || true")
                 appendLine("sh \"\$BRIDGE\" restart")
                 appendLine("sh \"\$WATCHDOG\" restart")
-                appendLine("echo SELF_ARM_OK")
+                appendLine("GRANTED=\$(dumpsys package \$PKG 2>/dev/null | grep -A3 android.permission.WRITE_SECURE_SETTINGS | grep -c 'granted=true')")
+                appendLine("PERSIST_PORT=\$(getprop persist.adb.tcp.port 2>/dev/null)")
+                appendLine("SERVICE_PORT=\$(getprop service.adb.tcp.port 2>/dev/null)")
+                appendLine("echo SELF_ARM_OK grant=\$GRANTED persist=\$PERSIST_PORT service=\$SERVICE_PORT")
+                appendLine("[ \"\$GRANTED\" != \"0\" ] || exit 21")
+                appendLine("[ \"\$PERSIST_PORT\" = \"5555\" ] || exit 22")
             }
             val out = kadb.shell(cmd)
             if (out.exitCode != 0 || !out.output.contains("SELF_ARM_OK")) {
@@ -138,6 +144,7 @@ internal class SelfArmBootstrapper(context: Context) {
         }
 
         if (alreadyEnabled) {
+            keepAdbKeyForever()
             return "usb debugging already on"
         }
 
@@ -152,9 +159,16 @@ internal class SelfArmBootstrapper(context: Context) {
             false
         }
 
-        if (!enabledNow) {
-            return "usb debugging not enabled; boot recovery may need re-arm"
+        if (!enabledNow ||
+            Settings.Global.getInt(
+                appContext.contentResolver,
+                Settings.Global.ADB_ENABLED,
+                0,
+            ) != 1
+        ) {
+            throw IOException("USB debugging could not be enabled for reboot recovery")
         }
+        keepAdbKeyForever()
 
         // R08 waits for helper/adbd liveness to settle after this setting transition.
         Thread.sleep(16_000L)
