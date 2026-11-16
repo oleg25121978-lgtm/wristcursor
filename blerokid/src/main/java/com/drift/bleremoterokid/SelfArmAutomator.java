@@ -110,6 +110,30 @@ final class SelfArmAutomator {
         String joined = String.join("\n", texts);
         String lower = joined.toLowerCase(Locale.ROOT);
 
+        // R08 behavior: if Developer options are actually OFF, go directly to
+        // Device info and enable them there instead of getting stuck on the disabled page.
+        boolean buildEntryVisible =
+                lower.contains("build number") ||
+                lower.contains("номер сборки") ||
+                lower.contains("software version") ||
+                lower.contains("версия по");
+        boolean developerOptionsEnabled;
+        try {
+            developerOptionsEnabled = Settings.Global.getInt(
+                    service.getContentResolver(),
+                    Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
+                    0) == 1;
+        } catch (Throwable ignored) {
+            developerOptionsEnabled = true;
+        }
+        if (!developerOptionsEnabled && !buildEntryVisible) {
+            SelfArmState.status = "ENABLING DEVELOPER OPTIONS";
+            openDeviceInfo();
+            noProgress = 0;
+            schedule(900);
+            return;
+        }
+
         String code = pairingCode(root, joined);
         int endpointPort = SelfArmWirelessAdbController.INSTANCE.readWirelessPort();
         if (endpointPort <= 0) endpointPort = firstEndpointPort(joined);
