@@ -10,8 +10,8 @@ android {
         applicationId = "com.drift.bleremoterokid"
         minSdk = 28
         targetSdk = 36
-        versionCode = 14
-        versionName = "R14"
+        versionCode = 16
+        versionName = "R16"
     }
 
     compileOptions {
