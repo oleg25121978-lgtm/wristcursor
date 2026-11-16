@@ -197,7 +197,8 @@ public class BleGattService extends Service {
                     if (!nativeMedia.toggleAudio()) setAction("AUDIO: NATIVE NOT READY");
                     break;
                 case "MENU":
-                    setAction(requestRawOrFallback("MENU", null) ? "MENU: KEY SENT" : "MENU: UNMAPPED");
+                    launchHome();
+                    setAction("MENU / HOME");
                     break;
                 case "HI_ROKID":
                     setAction(PrivilegedShortcutBridge.requestHiRokidShortcut(this)
