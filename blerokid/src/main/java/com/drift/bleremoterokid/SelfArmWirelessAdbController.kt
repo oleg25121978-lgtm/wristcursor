@@ -1,16 +1,14 @@
 package com.drift.bleremoterokid
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.IBinder
 import android.os.Parcel
 import android.provider.Settings
 import android.util.Log
+import java.util.Locale
 
-/**
- * Reads the live Android Wireless Debugging TLS port without depending on
- * Rokid Settings rendering the IP/port text in its UI.
- * Adapted from Anezium/R08-Access-Bridge (Apache-2.0).
- */
 internal object SelfArmWirelessAdbController {
     private const val TAG = "RokidWirelessAdb"
     private const val ADB_WIFI_ENABLED = "adb_wifi_enabled"
@@ -18,8 +16,24 @@ internal object SelfArmWirelessAdbController {
     private const val ADB_SERVICE = "adb"
     private const val ADB_DESCRIPTOR = "android.debug.IAdbManager"
     private const val TRANSACTION_GET_ADB_WIRELESS_PORT = 10
+    private var binderPortReadDenied = false
 
-    @Volatile private var binderPortReadDenied = false
+    fun enableAdbWifi(context: Context): Boolean =
+        runCatching {
+            Settings.Global.putInt(context.contentResolver, ADB_WIFI_ENABLED, 1)
+            true
+        }.getOrElse {
+            Log.d(TAG, "enableAdbWifi failed", it)
+            false
+        }
+
+    fun isEnabled(context: Context): Boolean =
+        runCatching {
+            Settings.Global.getInt(context.contentResolver, ADB_WIFI_ENABLED, 0) == 1
+        }.getOrDefault(false)
+
+    fun areDeveloperOptionsUsable(context: Context): Boolean =
+        isDeveloperOptionsEnabled(context) && !resolvesToDisabledDeveloperOptions(context)
 
     fun readWirelessPort(): Int {
         readWirelessPortProperty().takeIf { it > 0 }?.let { return it }
@@ -40,8 +54,8 @@ internal object SelfArmWirelessAdbController {
             binderPortReadDenied = true
             Log.d(TAG, "wireless debugging port binder read denied")
             0
-        } catch (t: Throwable) {
-            Log.d(TAG, "read wireless debugging port failed", t)
+        } catch (throwable: Throwable) {
+            Log.d(TAG, "read wireless debugging port failed", throwable)
             0
         } finally {
             reply.recycle()
@@ -49,12 +63,29 @@ internal object SelfArmWirelessAdbController {
         }
     }
 
-    fun markWirelessDebuggingEnabled(context: Context) {
-        try {
-            Settings.Global.putInt(context.contentResolver, ADB_WIFI_ENABLED, 1)
-        } catch (_: Throwable) {
-        }
+    fun waitForWirelessPort(timeoutMs: Long): Int {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        do {
+            val port = readWirelessPort()
+            if (port > 0) return port
+            try {
+                Thread.sleep(150L)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                return 0
+            }
+        } while (System.currentTimeMillis() < deadline)
+        return 0
     }
+
+    private fun isDeveloperOptionsEnabled(context: Context): Boolean =
+        runCatching {
+            Settings.Global.getInt(
+                context.contentResolver,
+                Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
+                0,
+            ) == 1
+        }.getOrDefault(false)
 
     private fun readWirelessPortProperty(): Int =
         runCatching {
@@ -67,4 +98,23 @@ internal object SelfArmWirelessAdbController {
             Log.d(TAG, "read wireless debugging port property failed", it)
             0
         }
+
+    private fun resolvesToDisabledDeveloperOptions(context: Context): Boolean =
+        runCatching {
+            val packageManager = context.packageManager
+            val settingsIntent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+                .setPackage("com.android.settings")
+            var resolved = packageManager.resolveActivity(
+                settingsIntent,
+                PackageManager.MATCH_DEFAULT_ONLY,
+            )
+            if (resolved == null) {
+                resolved = packageManager.resolveActivity(
+                    Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS),
+                    PackageManager.MATCH_DEFAULT_ONLY,
+                )
+            }
+            val name = resolved?.activityInfo?.name.orEmpty()
+            name.lowercase(Locale.US).contains("developmentsettingsdisabled")
+        }.getOrDefault(false)
 }
