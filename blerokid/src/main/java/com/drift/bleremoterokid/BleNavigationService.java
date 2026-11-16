@@ -6,6 +6,8 @@ import android.graphics.Path;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.View;
 
 public class BleNavigationService extends AccessibilityService {
     private static volatile BleNavigationService instance;
@@ -37,13 +39,15 @@ public class BleNavigationService extends AccessibilityService {
         switch (command) {
             case "LEFT":
             case "UP":
-                swipeRokidPrevious();
+                if (!moveFocus(false)) swipeRokidPrevious();
                 break;
             case "RIGHT":
             case "DOWN":
-                swipeRokidNext();
+                if (!moveFocus(true)) swipeRokidNext();
                 break;
             case "OK":
+                if (!clickFocused()) tapCenter(45);
+                break;
             case "TOUCH1": tapCenter(45); break;
             case "TOUCH2":
                 tapCenter(45);
@@ -57,6 +61,42 @@ public class BleNavigationService extends AccessibilityService {
             case "BACK": performGlobalAction(GLOBAL_ACTION_BACK); break;
             case "HOME": performGlobalAction(GLOBAL_ACTION_HOME); break;
         }
+    }
+
+    private boolean moveFocus(boolean forward) {
+        try {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            if (root == null) return false;
+            AccessibilityNodeInfo current = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+            if (current == null) current = root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY);
+            if (current == null) current = root;
+            AccessibilityNodeInfo next = current.focusSearch(forward ? View.FOCUS_FORWARD : View.FOCUS_BACKWARD);
+            if (next != null) {
+                boolean focused = next.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
+                if (!focused) focused = next.performAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS);
+                if (focused) return true;
+            }
+            // Fallback for lists/pages that expose scrolling rather than keyboard focus.
+            return root.performAction(forward
+                    ? AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                    : AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private boolean clickFocused() {
+        try {
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            if (root == null) return false;
+            AccessibilityNodeInfo node = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+            if (node == null) node = root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY);
+            while (node != null) {
+                if (node.isClickable() && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
+                node = node.getParent();
+            }
+        } catch (Throwable ignored) {}
+        return false;
     }
 
     private float width() { return getResources().getDisplayMetrics().widthPixels; }
