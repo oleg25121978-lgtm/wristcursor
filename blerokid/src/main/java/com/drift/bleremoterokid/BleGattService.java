@@ -46,10 +46,12 @@ public class BleGattService extends Service {
     private BluetoothAdapter adapter;
     private BluetoothGattServer gattServer;
     private BluetoothLeAdvertiser advertiser;
+    private boolean clientConnected;
     private NativeRecordingBridge nativeMedia;
     private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable retryBle = () -> {
-        if (adapter != null && adapter.isEnabled() && (gattServer == null || advertiser == null)) {
+        if (adapter != null && adapter.isEnabled() &&
+                (gattServer == null || (!clientConnected && advertiser == null))) {
             startBle();
         }
     };
@@ -70,9 +72,20 @@ public class BleGattService extends Service {
 
     private final BluetoothGattServerCallback serverCallback = new BluetoothGattServerCallback() {
         @Override public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
-            clientState = newState == BluetoothProfile.STATE_CONNECTED
+            clientConnected = newState == BluetoothProfile.STATE_CONNECTED;
+            clientState = clientConnected
                     ? "CONNECTED " + safeAddress(device)
                     : "DISCONNECTED (" + status + ")";
+            if (clientConnected) {
+                stopAdvertisingOnly();
+                bleState = "CONNECTED";
+            } else if (adapter != null && adapter.isEnabled()) {
+                handler.postDelayed(() -> {
+                    if (!clientConnected && advertiser == null && gattServer != null) {
+                        startAdvertisingOnly();
+                    }
+                }, 400);
+            }
             updateNotification();
         }
 
@@ -141,7 +154,7 @@ public class BleGattService extends Service {
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        if (gattServer == null || advertiser == null) startBle();
+        if (gattServer == null || (!clientConnected && advertiser == null)) startBle();
         return START_STICKY;
     }
 
@@ -182,27 +195,7 @@ public class BleGattService extends Service {
                 return;
             }
 
-            advertiser = adapter.getBluetoothLeAdvertiser();
-            if (advertiser == null) {
-                bleState = "ADVERTISER UNAVAILABLE";
-                updateNotification();
-                return;
-            }
-
-            AdvertiseSettings settings = new AdvertiseSettings.Builder()
-                    .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
-                    .setConnectable(true)
-                    .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
-                    .build();
-
-            AdvertiseData data = new AdvertiseData.Builder()
-                    .addServiceUuid(new ParcelUuid(SERVICE_UUID))
-                    .setIncludeDeviceName(false)
-                    .build();
-
-            bleState = "ADVERTISING STARTING";
-            advertiser.startAdvertising(settings, data, advertiseCallback);
-            updateNotification();
+            startAdvertisingOnly();
         } catch (SecurityException e) {
             bleState = "BLE PERMISSION ERROR";
             updateNotification();
@@ -463,11 +456,43 @@ public class BleGattService extends Service {
         catch (SecurityException e) { return "?"; }
     }
 
-    private void stopBle() {
+    private void startAdvertisingOnly() {
+        if (adapter == null || !adapter.isEnabled() || clientConnected) return;
+        try {
+            advertiser = adapter.getBluetoothLeAdvertiser();
+            if (advertiser == null) {
+                bleState = "ADVERTISER UNAVAILABLE";
+                updateNotification();
+                return;
+            }
+            AdvertiseSettings settings = new AdvertiseSettings.Builder()
+                    .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER)
+                    .setConnectable(true)
+                    .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
+                    .build();
+            AdvertiseData data = new AdvertiseData.Builder()
+                    .addServiceUuid(new ParcelUuid(SERVICE_UUID))
+                    .setIncludeDeviceName(false)
+                    .build();
+            bleState = "ADVERTISING STARTING";
+            advertiser.startAdvertising(settings, data, advertiseCallback);
+            updateNotification();
+        } catch (Throwable t) {
+            advertiser = null;
+            bleState = "ADVERTISE ERROR " + t.getClass().getSimpleName();
+            updateNotification();
+        }
+    }
+
+    private void stopAdvertisingOnly() {
         if (advertiser != null) {
             try { advertiser.stopAdvertising(advertiseCallback); } catch (Throwable ignored) {}
             advertiser = null;
         }
+    }
+
+    private void stopBle() {
+        stopAdvertisingOnly();
         if (gattServer != null) {
             try { gattServer.close(); } catch (Throwable ignored) {}
             gattServer = null;
