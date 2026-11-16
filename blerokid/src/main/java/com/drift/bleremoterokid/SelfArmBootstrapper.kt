@@ -29,24 +29,18 @@ internal class SelfArmBootstrapper(context: Context) {
         pair(pairPort, pairingCode)
         val result = installViaPort(connectPort)
 
+        // The initial Wireless-Debugging transport is now proven good and has granted
+        // WRITE_SECURE_SETTINGS. Do not toggle adb_enabled inside that shell: restarting
+        // adbd there can kill the fresh shell helpers before bootstrap has completed.
+        SelfArmWirelessAdbController.markWirelessDebuggingEnabled(appContext)
+        keepAdbKeyForever()
+        val recovery = prepareBootRecovery()
+
         appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putBoolean(KEY_ARMED, true).apply()
 
-        try {
-            Settings.Global.putLong(appContext.contentResolver, "adb_allowed_connection_time", 0L)
-            Settings.Global.putInt(appContext.contentResolver, Settings.Global.ADB_ENABLED, 1)
-        } catch (_: Throwable) {
-        }
-
-        Thread.sleep(4500L)
-        try {
-            installViaPort(LOOPBACK_PORT)
-        } catch (t: Throwable) {
-            Log.w(TAG, "loopback restart after bootstrap failed", t)
-        }
-
         PrivilegedShortcutBridge.requestWifiEnabled(appContext, false)
-        return result
+        return "$result; $recovery"
     }
 
     fun rearmLoopback(): String {
@@ -110,6 +104,63 @@ internal class SelfArmBootstrapper(context: Context) {
             return out.output.trim()
         } finally {
             runCatching { kadb.close() }
+        }
+    }
+
+    private fun keepAdbKeyForever() {
+        try {
+            Settings.Global.putLong(appContext.contentResolver, "adb_allowed_connection_time", 0L)
+        } catch (_: Throwable) {
+        }
+    }
+
+    /**
+     * Mirrors R08's post-bootstrap sequence: make sure adbd starts at boot only after
+     * the helpers are already installed. Enabling USB debugging may restart adbd, so
+     * wait for that transition and restore the helpers over loopback only if needed.
+     */
+    private fun prepareBootRecovery(): String {
+        val alreadyEnabled = try {
+            Settings.Global.getInt(
+                appContext.contentResolver,
+                Settings.Global.ADB_ENABLED,
+                0,
+            ) == 1
+        } catch (_: Throwable) {
+            false
+        }
+
+        if (alreadyEnabled) {
+            return "usb debugging already on"
+        }
+
+        val enabledNow = try {
+            Settings.Global.putInt(
+                appContext.contentResolver,
+                Settings.Global.ADB_ENABLED,
+                1,
+            )
+        } catch (t: Throwable) {
+            Log.w(TAG, "cannot enable USB debugging for boot recovery", t)
+            false
+        }
+
+        if (!enabledNow) {
+            return "usb debugging not enabled; boot recovery may need re-arm"
+        }
+
+        // R08 waits for helper/adbd liveness to settle after this setting transition.
+        Thread.sleep(16_000L)
+        if (PrivilegedShortcutBridge.isCurrent(appContext)) {
+            return "usb debugging enabled; helpers alive"
+        }
+
+        return try {
+            val out = installViaPort(LOOPBACK_PORT)
+            "usb debugging enabled; loopback re-armed: " + out.lineSequence().firstOrNull().orEmpty()
+        } catch (t: Throwable) {
+            Log.w(TAG, "post-bootstrap loopback re-arm failed", t)
+            "usb debugging enabled; loopback re-arm pending"
         }
     }
 
