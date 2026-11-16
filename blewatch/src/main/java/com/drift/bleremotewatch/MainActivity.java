@@ -150,6 +150,7 @@ public class MainActivity extends Activity {
         hardwareText.setText("BLE HW: " + (feature ? "YES" : "NO") + "   BT: " + (enabled ? "ON" : "OFF"));
 
         requestBlePermissionsIfNeeded();
+        if (permissionsReady()) handler.postDelayed(this::startScan, 350);
     }
 
     private void buildUi() {
@@ -362,6 +363,7 @@ public class MainActivity extends Activity {
             boolean ok = true;
             for (int result : grantResults) ok &= result == PackageManager.PERMISSION_GRANTED;
             scanText.setText(ok ? "PERMISSIONS: OK" : "PERMISSIONS: DENIED");
+            if (ok) handler.postDelayed(this::startScan, 250);
         }
     }
 
