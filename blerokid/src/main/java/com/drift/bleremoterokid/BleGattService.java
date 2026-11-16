@@ -18,6 +18,7 @@ import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertiseSettings;
 import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
@@ -43,6 +44,7 @@ public class BleGattService extends Service {
     private BluetoothGattServer gattServer;
     private BluetoothLeAdvertiser advertiser;
     private RokidMediaController mediaController;
+    private RokidAudioRecorder audioRecorder;
 
     private final BluetoothGattServerCallback serverCallback = new BluetoothGattServerCallback() {
         @Override public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
@@ -87,12 +89,23 @@ public class BleGattService extends Service {
     @Override public void onCreate() {
         super.onCreate();
         createNotificationChannel();
-        startForeground(NOTIFICATION_ID, buildNotification());
+        if (Build.VERSION.SDK_INT >= 29) {
+            int types = ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA |
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE |
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE;
+            startForeground(NOTIFICATION_ID, buildNotification(), types);
+        } else {
+            startForeground(NOTIFICATION_ID, buildNotification());
+        }
 
         manager = getSystemService(BluetoothManager.class);
         adapter = manager == null ? null : manager.getAdapter();
 
         mediaController = new RokidMediaController(this, text -> {
+            lastAction = text;
+            updateNotification();
+        });
+        audioRecorder = new RokidAudioRecorder(this, text -> {
             lastAction = text;
             updateNotification();
         });
@@ -180,11 +193,11 @@ public class BleGattService extends Service {
                     mediaController.toggleVideo();
                     break;
                 case "VOICE":
-                    launchStock("com.rokid.os.sprite.launcher.page.audio.AudioPageActivity", "AUDIO");
+                    audioRecorder.toggle();
                     break;
                 case "MENU":
-                    openOverlayMenu();
-                    setAction("MENU");
+                    launchHome();
+                    setAction("MENU / HOME");
                     break;
                 case "NEXUS":
                     Intent nexus = new Intent("com.anezium.rokidbus.glasses.action.OPEN_LAUNCHER");
@@ -237,13 +250,15 @@ public class BleGattService extends Service {
                 case "APP_AUDIO":
                     launchStock("com.rokid.os.sprite.launcher.page.audio.AudioPageActivity", "AUDIO");
                     break;
+                case "HOME":
+                    launchHome();
+                    break;
                 case "LEFT":
                 case "RIGHT":
                 case "UP":
                 case "DOWN":
                 case "OK":
                 case "BACK":
-                case "HOME":
                 case "TOUCH1":
                 case "TOUCH2":
                 case "TOUCH3":
@@ -303,6 +318,18 @@ public class BleGattService extends Service {
         Settings.System.putInt(getContentResolver(),
                 Settings.System.SCREEN_BRIGHTNESS, next);
         setAction("BRIGHTNESS " + Math.round(next * 15f / 255f) + "/15");
+    }
+
+    private void launchHome() {
+        Intent intent = new Intent();
+        intent.setClassName(
+                "com.rokid.os.sprite.launcher",
+                "com.rokid.os.sprite.launcher.main.SpriteMainActivity");
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
+                Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(intent);
+        setAction("HOME");
     }
 
     private void launchStock(String className, String label) {
@@ -373,6 +400,7 @@ public class BleGattService extends Service {
     @Override public void onDestroy() {
         stopBle();
         if (mediaController != null) mediaController.release();
+        if (audioRecorder != null) audioRecorder.release();
         bleState = "STOPPED";
         clientState = "NONE";
         super.onDestroy();
