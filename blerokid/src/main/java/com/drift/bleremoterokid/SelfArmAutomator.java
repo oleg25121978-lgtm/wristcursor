@@ -223,14 +223,10 @@ final class SelfArmAutomator {
             return;
         }
 
-        AccessibilityNodeInfo build = findByText(root,
-                "build number",
-                "номер сборки",
-                "software version",
-                "версия по");
+        AccessibilityNodeInfo build = findBuildEntry(root);
         if (build != null) {
             SelfArmState.status = "ENABLING DEVELOPER OPTIONS";
-            tapBuildNumber(build, 0);
+            tapBuildNumber(0);
             return;
         }
 
@@ -241,7 +237,7 @@ final class SelfArmAutomator {
         schedule(500);
     }
 
-    private void tapBuildNumber(AccessibilityNodeInfo node, int count) {
+    private void tapBuildNumber(int count) {
         if (!active) return;
         if (count >= 8) {
             handler.postDelayed(() -> {
@@ -250,8 +246,56 @@ final class SelfArmAutomator {
             }, 900);
             return;
         }
+
+        AccessibilityNodeInfo root = AccessibilityWindowRoots.getNavigationRoot(service);
+        AccessibilityNodeInfo node = root == null ? null : findBuildEntry(root);
+        if (node == null) {
+            SelfArmState.status = "SEARCHING BUILD NUMBER";
+            schedule(350);
+            return;
+        }
+
         clickNode(node);
-        handler.postDelayed(() -> tapBuildNumber(node, count + 1), 180);
+        handler.postDelayed(() -> tapBuildNumber(count + 1), 300);
+    }
+
+    /**
+     * R08 approach: on Rokid the row is not always labelled "Build number".
+     * Prefer the clickable row that actually contains this firmware's Build.DISPLAY/Build.ID.
+     */
+    private AccessibilityNodeInfo findBuildEntry(AccessibilityNodeInfo root) {
+        String display = Build.DISPLAY == null ? "" : Build.DISPLAY.trim().toLowerCase(Locale.ROOT);
+        String id = Build.ID == null ? "" : Build.ID.trim().toLowerCase(Locale.ROOT);
+
+        AccessibilityNodeInfo exact = findFirst(root, n -> {
+            if (!n.isClickable()) return false;
+            String text = subtreeText(n).toLowerCase(Locale.ROOT);
+            return containsBuildIdentifier(text, display) || containsBuildIdentifier(text, id);
+        });
+        if (exact != null) return exact;
+
+        exact = findFirst(root, n -> {
+            String text = nodeText(n).toLowerCase(Locale.ROOT);
+            return containsBuildIdentifier(text, display) || containsBuildIdentifier(text, id);
+        });
+        if (exact != null) return exact;
+
+        return findByText(root,
+                "build number",
+                "номер сборки",
+                "software version",
+                "версия по",
+                "версия сборки");
+    }
+
+    private boolean containsBuildIdentifier(String text, String id) {
+        return id != null && id.length() >= 4 && text != null && text.contains(id);
+    }
+
+    private String subtreeText(AccessibilityNodeInfo node) {
+        List<String> parts = new ArrayList<>();
+        collectTexts(node, parts);
+        return String.join(" ", parts);
     }
 
     private void bootstrap(String code, int pairPort, int connPort) {
