@@ -46,12 +46,10 @@ public class BleGattService extends Service {
     private BluetoothAdapter adapter;
     private BluetoothGattServer gattServer;
     private BluetoothLeAdvertiser advertiser;
-    private boolean clientConnected;
     private NativeRecordingBridge nativeMedia;
     private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable retryBle = () -> {
-        if (adapter != null && adapter.isEnabled() &&
-                (gattServer == null || (!clientConnected && advertiser == null))) {
+        if (adapter != null && adapter.isEnabled() && (gattServer == null || advertiser == null)) {
             startBle();
         }
     };
@@ -72,20 +70,9 @@ public class BleGattService extends Service {
 
     private final BluetoothGattServerCallback serverCallback = new BluetoothGattServerCallback() {
         @Override public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
-            clientConnected = newState == BluetoothProfile.STATE_CONNECTED;
-            clientState = clientConnected
+            clientState = newState == BluetoothProfile.STATE_CONNECTED
                     ? "CONNECTED " + safeAddress(device)
                     : "DISCONNECTED (" + status + ")";
-            if (clientConnected) {
-                stopAdvertisingOnly();
-                bleState = "CONNECTED";
-            } else if (adapter != null && adapter.isEnabled()) {
-                handler.postDelayed(() -> {
-                    if (!clientConnected && advertiser == null && gattServer != null) {
-                        startAdvertisingOnly();
-                    }
-                }, 400);
-            }
             updateNotification();
         }
 
@@ -154,7 +141,7 @@ public class BleGattService extends Service {
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        if (gattServer == null || (!clientConnected && advertiser == null)) startBle();
+        if (gattServer == null || advertiser == null) startBle();
         return START_STICKY;
     }
 
@@ -457,7 +444,7 @@ public class BleGattService extends Service {
     }
 
     private void startAdvertisingOnly() {
-        if (adapter == null || !adapter.isEnabled() || clientConnected) return;
+        if (adapter == null || !adapter.isEnabled()) return;
         try {
             advertiser = adapter.getBluetoothLeAdvertiser();
             if (advertiser == null) {
