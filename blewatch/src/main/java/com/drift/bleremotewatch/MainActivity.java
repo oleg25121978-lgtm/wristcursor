@@ -281,7 +281,7 @@ public class MainActivity extends Activity {
 
         appsPage.addView(commandButton("CAMERA", "APP_CAMERA"), full());
         appsPage.addView(commandButton("ROKID AI", "APP_CHAT"), full());
-        appsPage.addView(commandButton("HI ROKID", "HI_ROKID"), full());
+        appsPage.addView(commandButton("VISION AI", "APP_VISION_AI"), full());
         appsPage.addView(commandButton("TRANSLATE", "APP_TRANSLATE"), full());
         appsPage.addView(commandButton("TELEPROMPTER", "APP_PROMPTER"), full());
         appsPage.addView(commandButton("MUSIC", "APP_MUSIC"), full());
