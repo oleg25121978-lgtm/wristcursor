@@ -71,12 +71,12 @@ final class WirelessDebugging {
      * switches it off again: Nexus leaves it on and may hold a session on it.
      */
     static int ensureEnabled(Context context, long timeoutMs) {
-        if (!WirelessAdbController.isEnabled(context)) {
-            if (!WirelessAdbController.enableAdbWifi(context)) {
+        if (!SelfArmWirelessAdbController.INSTANCE.isEnabled(context)) {
+            if (!SelfArmWirelessAdbController.INSTANCE.enableAdbWifi(context)) {
                 return 0;
             }
             Log.i(TAG, "wireless debugging enabled for maintenance");
         }
-        return WirelessAdbController.waitForWirelessPort(timeoutMs);
+        return SelfArmWirelessAdbController.INSTANCE.waitForWirelessPort(timeoutMs);
     }
 }
