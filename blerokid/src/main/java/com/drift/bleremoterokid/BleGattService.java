@@ -236,6 +236,11 @@ public class BleGattService extends Service {
                         setAction("HI ROKID FALLBACK");
                     }
                     break;
+                case "APP_VISION_AI":
+                    setAction(nativeMedia.openVisionAi()
+                            ? "VISION AI: NATIVE OPEN"
+                            : "VISION AI: NATIVE NOT READY");
+                    break;
                 case "APP_TRANSLATE":
                     launchStock("com.rokid.os.sprite.launcher.page.translate.TranslatePageActivity", "TRANSLATE");
                     break;
