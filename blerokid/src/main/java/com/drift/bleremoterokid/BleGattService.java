@@ -276,10 +276,10 @@ public class BleGattService extends Service {
                     }
                     break;
                 case "APP_VISION_AI":
-                    Intent visionAi = new Intent("com.rokid.visualaidemo.ACTION_START");
-                    visionAi.setPackage("com.rokid.os.sprite.launcher");
-                    sendBroadcast(visionAi);
-                    setAction("VISION AI");
+                    if (!nativeMedia.openVisionAi()) {
+                        setAction("VISION AI: WAITING FOR NATIVE");
+                        retryNativeCommand("APP_VISION_AI", 0);
+                    }
                     break;
                 case "APP_TRANSLATE":
                     launchStock("com.rokid.os.sprite.launcher.page.translate.TranslatePageActivity", "TRANSLATE");
@@ -373,6 +373,9 @@ public class BleGattService extends Service {
                     break;
                 case "HI_ROKID":
                     ok = nativeMedia != null && nativeMedia.openAiAssist();
+                    break;
+                case "APP_VISION_AI":
+                    ok = nativeMedia != null && nativeMedia.openVisionAi();
                     break;
             }
             if (!ok) retryNativeCommand(command, attempt + 1);
