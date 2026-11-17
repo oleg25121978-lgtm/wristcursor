@@ -156,14 +156,22 @@ final class NativeRecordingBridge {
     }
 
     boolean openAi() {
+        return openScene("ai_assist", true, "ROKID AI: NATIVE OPEN");
+    }
+
+    boolean openVisionAi() {
+        return openScene("ai_chat", false, "VISION AI: NATIVE OPEN");
+    }
+
+    private boolean openScene(String sceneKey, boolean useTips, String successStatus) {
         if (server == null) return false;
         try {
-            JSONObject data = new JSONObject().put("sceneKey", "ai_assist").put("useTips", true);
+            JSONObject data = new JSONObject().put("sceneKey", sceneKey).put("useTips", useTips);
             transact(3, new JSONObject().put("type", "cmd_open_scene_with_ignore_tips").put("data", data).toString());
-            status("ROKID AI: NATIVE OPEN");
+            status(successStatus);
             return true;
         } catch (RemoteException | JSONException | RuntimeException exception) {
-            Log.w(TAG, "Native AI request failed", exception);
+            Log.w(TAG, "Native AI request failed for " + sceneKey, exception);
             return false;
         }
     }
