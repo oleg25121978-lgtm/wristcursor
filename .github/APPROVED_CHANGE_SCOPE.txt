@@ -1,0 +1,5 @@
+# OWNER-APPROVED CHANGE SCOPE
+# Each non-comment line is ONE exact repository-relative path authorized by OWNER.
+# No globs, prefixes, wildcards or broad directories. Initially: nothing approved.
+# First approve paths with a separate PR; next PR may change those paths only.
+# Editing this file in the same PR as code does NOT approve that code.
