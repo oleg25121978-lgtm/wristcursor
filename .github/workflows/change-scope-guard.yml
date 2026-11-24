@@ -1,0 +1,58 @@
+name: CHANGE-SCOPE-GUARD (approved paths only)
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  approved-scope:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fail if changed files exceed owner-approved scope
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" > /tmp/changed_paths.txt
+          if git cat-file -e "$BASE_SHA:.github/APPROVED_CHANGE_SCOPE.txt" 2>/dev/null; then
+            git show "$BASE_SHA:.github/APPROVED_CHANGE_SCOPE.txt" > /tmp/owner_approved_paths.txt
+            export HAS_PREVIOUS_POLICY=1
+          else
+            : > /tmp/owner_approved_paths.txt
+            export HAS_PREVIOUS_POLICY=0
+          fi
+          python3 - <<'PY'
+          import os, pathlib, sys
+          changed=[s.strip() for s in pathlib.Path('/tmp/changed_paths.txt').read_text().splitlines() if s.strip()]
+          approved=set()
+          for line in pathlib.Path('/tmp/owner_approved_paths.txt').read_text().splitlines():
+              line=line.strip()
+              if not line or line.startswith('#'):continue
+              if any(c in line for c in '*?[]') or line.startswith('/') or '..' in line.split('/'):
+                  print('REJECT invalid approval:',line);sys.exit(1)
+              approved.add(line)
+          policy={'.github/APPROVED_CHANGE_SCOPE.txt'}
+          bootstrap={'AGENTS.md','.github/APPROVED_CHANGE_SCOPE.txt','.github/workflows/change-scope-guard.yml'}
+          if os.environ['HAS_PREVIOUS_POLICY']=='0' and set(changed)<=bootstrap:
+              print('PASS: initial project rules and guard installation only')
+              sys.exit(0)
+          if set(changed)<=policy:
+              print('PASS: approval-list-only change; any code needs a SEPARATE later PR')
+              sys.exit(0)
+          denied=[p for p in changed if p not in approved or p in bootstrap]
+          print('Owner-approved exact paths:',sorted(approved))
+          print('Changed:',changed)
+          if denied:
+              print('BLOCKED: unapproved or protected paths:',denied)
+              print('Obtain explicit owner permission; update APPROVED_CHANGE_SCOPE.txt')
+              print('in a separate PR first. This PR cannot approve itself.')
+              sys.exit(1)
+          print('PASS: all changed paths match the PREEXISTING exact owner-approved scope')
+          PY
